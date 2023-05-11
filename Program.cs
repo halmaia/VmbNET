@@ -1,8 +1,8 @@
 ﻿namespace VmbNET
 {
-    internal class Program
+    internal static class Program
     {
-        static void Main(string[] args)
+        static void Main()
         {
             
         }
