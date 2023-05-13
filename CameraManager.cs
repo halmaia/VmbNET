@@ -7,8 +7,8 @@ namespace VmbNET
     public static class CameraManager
     {
         #region Private Constants
-        private const string dllName = @"C:\Program Files\Allied Vision\Vimba X\api\bin\VmbC.dll";
-        #endregion
+        private const string dllName = @"VmbC.dll";
+        #endregion End – Private Constants
 
         #region Error Handling
         // TODO: Complete missing cases:
@@ -54,7 +54,7 @@ namespace VmbNET
         /// A ReadOnlySpan<char> containing a semicolon (Windows) or colon (other os) separated list of paths.
         /// The paths contain directories to search for .cti files, paths to .cti files and optionally the path to a configuration xml file.
         /// </param>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(MethodImplOptions.AggressiveInlining), SkipLocalsInit]
         public static void Startup([DisallowNull] ReadOnlySpan<char> pathConfiguration)
         {
             ArgumentOutOfRangeException.ThrowIfZero(pathConfiguration!.Length, nameof(pathConfiguration));
@@ -89,7 +89,10 @@ namespace VmbNET
         public static void Startup([DisallowNull] DirectoryInfo directoryInfo)
         {
             ArgumentNullException.ThrowIfNull(directoryInfo, nameof(directoryInfo));
-            Startup((ReadOnlySpan<char>)directoryInfo.FullName);
+            if (!directoryInfo!.Exists) // Early exit.
+                throw new DirectoryNotFoundException();
+
+            Startup((ReadOnlySpan<char>)directoryInfo!.FullName);
         }
 
         /// <summary>
@@ -119,11 +122,17 @@ namespace VmbNET
         /// A string containing a semicolon (Windows) or colon (other os) separated list of paths.
         /// The paths contain directories to search for .cti files, paths to .cti files and optionally the path to a configuration xml file.
         /// </param>
-        public static void Startup([DisallowNull] string[] paths)
+        /// <param name="separator">
+        /// Semicolon for Windows or colon for other os.
+        /// </param>
+        public static void Startup([DisallowNull] string[] paths, [ConstantExpected] char separator = ';')
         {
             ArgumentNullException.ThrowIfNull(paths, nameof(paths));
             ArgumentOutOfRangeException.ThrowIfZero(paths!.Length, nameof(paths));
-            Startup((ReadOnlySpan<char>)string.Join(',', paths!));
+            if (separator is not ',' or ';')
+                throw new ArgumentOutOfRangeException(nameof(separator), "Use semicolon for Windows or colon for other os!");
+
+            Startup((ReadOnlySpan<char>)string.Join(separator, paths!));
         }
         #endregion
 
@@ -137,9 +146,29 @@ namespace VmbNET
             DetectError(VmbShutdown());
 
             [DllImport(dllName, BestFitMapping = false, CallingConvention = CallingConvention.StdCall,
-                EntryPoint = nameof(VmbShutdown), ExactSpelling = true, PreserveSig = true, SetLastError = false)]
-            static unsafe extern ErrorType VmbShutdown();
+             EntryPoint = nameof(VmbShutdown), ExactSpelling = true, PreserveSig = true, SetLastError = false)]
+            static extern ErrorType VmbShutdown();
         }
         #endregion
+
+        #region API Test
+        public static bool IsAPIUpAndRunning(out string errorMessage)
+        {
+            try
+            {
+                Startup();
+                Shutdown();
+            }
+            catch (Exception ex)
+            {
+                errorMessage = ex.Message;
+                return false;
+            }
+
+            errorMessage = string.Empty;
+            return true;
+        }
+        public static bool IsVmbCAvailable => File.Exists(dllName);
+        #endregion End – API Test
     }
 }
