@@ -7,7 +7,7 @@ namespace VmbNET
     public static class CameraManager
     {
         #region Private Constants
-        private const string dllName = @"VmbC.dll";
+        private const string dllName = @"C:\Program Files\Allied Vision\Vimba X\api\bin\VmbC.dll";
         #endregion End – Private Constants
 
         #region Error Handling
@@ -86,6 +86,7 @@ namespace VmbNET
         /// <param name="pathConfiguration">
         /// The DirectoryInfo contains directory to search for .cti files, paths to .cti files and optionally the path to a configuration xml file.
         /// </param>
+        [SkipLocalsInit]
         public static void Startup([DisallowNull] DirectoryInfo directoryInfo)
         {
             ArgumentNullException.ThrowIfNull(directoryInfo, nameof(directoryInfo));
@@ -99,6 +100,7 @@ namespace VmbNET
         /// Initializes the underlying VmbC API.
         /// </summary>
         ///<remarks> The cti files found in the paths the GENICAM_GENTL{32|64}_PATH environment variable are considered.</remarks>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static unsafe void Startup() => Startup((char*)null);
 
         /// <summary>
@@ -125,6 +127,7 @@ namespace VmbNET
         /// <param name="separator">
         /// Semicolon for Windows or colon for other os.
         /// </param>
+        [SkipLocalsInit]
         public static void Startup([DisallowNull] string[] paths, [ConstantExpected] char separator = ';')
         {
             ArgumentNullException.ThrowIfNull(paths, nameof(paths));
@@ -141,6 +144,7 @@ namespace VmbNET
         /// Perform a shutdown of the API. This frees some resources and deallocates all physical resources if applicable.
         /// </summary>
         /// <remarks>The call is silently ignored, if executed from a callback.</remarks>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void Shutdown()
         {
             DetectError(VmbShutdown());
@@ -170,5 +174,28 @@ namespace VmbNET
         }
         public static bool IsVmbCAvailable => File.Exists(dllName);
         #endregion End – API Test
+
+        #region Version Query
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static unsafe void VersionQuery(VmbVersionInfo* versionInfo)
+        {
+            ArgumentNullException.ThrowIfNull(versionInfo, nameof(versionInfo));
+            DetectError(VmbVersionQuery(versionInfo!));
+
+            [DllImport(dllName, BestFitMapping = false, CallingConvention = CallingConvention.StdCall,
+            EntryPoint = nameof(VmbVersionQuery), ExactSpelling = true, PreserveSig = true, SetLastError = false)]
+            static extern ErrorType VmbVersionQuery(VmbVersionInfo* versionInfo,
+            [ConstantExpected(Max = VmbVersionInfo.Size, Min = VmbVersionInfo.Size)]
+            uint sizeofVersionInfo = VmbVersionInfo.Size);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining), SkipLocalsInit]
+        public static VmbVersionInfo VersionQuery()
+        {
+            VmbVersionInfo versionInfo;
+            unsafe { VersionQuery(&versionInfo); }
+            return versionInfo;
+        }
+        #endregion End – Version Query
     }
 }

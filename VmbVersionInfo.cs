@@ -13,6 +13,5 @@ namespace VmbNET
         public readonly uint Patch { get; }
         public override readonly string ToString() => $"{Major}.{Minor}.{Patch}";
         public static explicit operator Version(VmbVersionInfo vmbVersion) => new((int)vmbVersion.Major, (int)vmbVersion.Minor, (int)vmbVersion.Patch);
-
     }
 }
