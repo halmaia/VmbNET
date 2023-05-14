@@ -210,10 +210,10 @@ namespace VmbNET
         #endregion End – Version Query
 
         #region Close Camera
-        public static unsafe void CameraClose([ReadOnly(true)] VmbHandle cameraHandle)
+        public static void CameraClose([ReadOnly(true)] VmbHandle cameraHandle)
         {
-            ArgumentNullException.ThrowIfNull((void*)cameraHandle, nameof(cameraHandle));
-            DetectError(VmbCameraClose(cameraHandle));
+            unsafe { ArgumentNullException.ThrowIfNull(cameraHandle.ToPointer(), nameof(cameraHandle)); }
+            DetectError(VmbCameraClose(cameraHandle!));
 
             [DllImport(dllName, BestFitMapping = false, CallingConvention = CallingConvention.StdCall,
              EntryPoint = nameof(VmbCameraClose), ExactSpelling = true, PreserveSig = true, SetLastError = false)]
