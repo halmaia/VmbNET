@@ -1,6 +1,8 @@
-﻿using System.Diagnostics.CodeAnalysis;
+﻿using System.ComponentModel;
+using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using VmbHandle = nuint;
 
 namespace VmbNET
 {
@@ -206,5 +208,17 @@ namespace VmbNET
             return versionInfo;
         }
         #endregion End – Version Query
+
+        #region Close Camera
+        public static unsafe void CameraClose([ReadOnly(true)] VmbHandle cameraHandle)
+        {
+            ArgumentNullException.ThrowIfNull((void*)cameraHandle, nameof(cameraHandle));
+            DetectError(VmbCameraClose(cameraHandle));
+
+            [DllImport(dllName, BestFitMapping = false, CallingConvention = CallingConvention.StdCall,
+             EntryPoint = nameof(VmbCameraClose), ExactSpelling = true, PreserveSig = true, SetLastError = false)]
+            static extern ErrorType VmbCameraClose([ReadOnly(true)] VmbHandle cameraHandle);
+        }
+        #endregion End – Close Camera
     }
 }

@@ -5,7 +5,7 @@
         static unsafe void Main()
         {
             var ver =CameraManager.VersionQuery();
-             CameraManager.VersionQuery(null);
+            CameraManager.CameraClose((nuint)((void*)null));
         }
     }
 }

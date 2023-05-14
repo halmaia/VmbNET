@@ -12,11 +12,13 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
     <Deterministic>False</Deterministic>
     <GenerateAssemblyInfo>True</GenerateAssemblyInfo>
+    <LangVersion>preview</LangVersion>
   </PropertyGroup>
   
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
     <Deterministic>False</Deterministic>
     <GenerateAssemblyInfo>True</GenerateAssemblyInfo>
+    <LangVersion>preview</LangVersion>
   </PropertyGroup>
 
 </Project>
