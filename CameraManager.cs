@@ -176,6 +176,11 @@ namespace VmbNET
         #endregion End – API Test
 
         #region Version Query
+        /// <summary>
+        /// Retrieve the version number of VmbC.
+        /// </summary>
+        /// <remarks>This function can be called at anytime, even before the API is initialized.</remarks>
+        /// <param name="versionInfo">Pointer to the struct where version information resides</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static unsafe void VersionQuery(VmbVersionInfo* versionInfo)
         {
@@ -189,6 +194,10 @@ namespace VmbNET
             uint sizeofVersionInfo = VmbVersionInfo.Size);
         }
 
+        /// <summary>
+        /// Retrieve the version number of VmbC.
+        /// </summary>
+        /// <remarks>This function can be called at anytime, even before the API is initialized.</remarks>
         [MethodImpl(MethodImplOptions.AggressiveInlining), SkipLocalsInit]
         public static VmbVersionInfo VersionQuery()
         {
