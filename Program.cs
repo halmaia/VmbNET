@@ -5,8 +5,9 @@
         static unsafe void Main()
         {
             CameraManager.Startup();
-            var r = CameraManager.CamerasList();
 
+            var h = CameraManager.OpenFirstCamera();
+            CameraManager.CameraClose(h);
             CameraManager.Shutdown();
         }
     }
