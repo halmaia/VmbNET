@@ -273,10 +273,35 @@ namespace VmbNET
         public static VmbHandle OpenFirstCamera(VmbAccessMode accessMode = VmbAccessMode.VmbAccessModeExclusive)
         {
             VmbCameraInfo? firstCamera = GetFirstCamera();
-            return firstCamera is null ? 
+            return firstCamera is null ?
                 throw new NullReferenceException("No camera found!") :
                 CameraOpen(firstCamera!.Value, accessMode);
         }
         #endregion End – Open Cameras
+
+        #region Frame Announce
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static unsafe void FrameAnnounce(VmbHandle cameraHandle,
+                                                 VmbFrame* pFrame)
+        {
+            DetectError(VmbFrameAnnounce(cameraHandle, pFrame));
+    
+            [DllImport(dllName, BestFitMapping = false, CallingConvention = CallingConvention.StdCall,
+             EntryPoint = nameof(VmbFrameAnnounce), ExactSpelling = true, SetLastError = false)]
+            static unsafe extern ErrorType VmbFrameAnnounce(
+                                      VmbHandle cameraHandle,
+                                      VmbFrame* pFrame,
+                                      [ConstantExpected(Max = VmbFrame.Size, Min = VmbFrame.Size)]
+                                       uint sizeofFrame = VmbFrame.Size);
+        }
+
+        public static VmbFrame CreateFrameAndAnnounce(VmbHandle cameraHandle)
+        {
+            VmbFrame frame = new();
+            unsafe { FrameAnnounce(cameraHandle, &frame); }
+            return frame;
+        }
+
+        #endregion End – Frame Announce
     }
 }
