@@ -220,5 +220,34 @@ namespace VmbNET
             static extern ErrorType VmbCameraClose(VmbHandle cameraHandle);
         }
         #endregion End – Close Camera
+
+        #region List Cameras
+        [return: MaybeNull]
+        public static unsafe VmbCameraInfo[]? CamerasList(bool firstOnly = true)
+        {
+            uint NumFound;
+            uint* pNumFound = &NumFound;
+            DetectError(VmbCamerasList(null, 0u, pNumFound, 0u));
+
+            if (NumFound == 0) return null;
+            if (firstOnly) NumFound = 1u;
+
+            VmbCameraInfo[] cameraInfo = GC.AllocateUninitializedArray<VmbCameraInfo>((int)NumFound, false);
+
+            fixed (VmbCameraInfo* pCameraInfo = cameraInfo)
+                DetectError(VmbCamerasList(pCameraInfo, NumFound, pNumFound, VmbCameraInfo.Size * NumFound));
+
+            return cameraInfo;
+
+            [DllImport(dllName, BestFitMapping = false, CallingConvention = CallingConvention.StdCall,
+             EntryPoint = nameof(VmbCamerasList), ExactSpelling = true, SetLastError = false)]
+            static unsafe extern ErrorType VmbCamerasList(VmbCameraInfo* pCameraInfo, uint listLength,
+                                                          uint* pNumFound,
+                                                          uint sizeofCameraInfo);
+        }
+
+        [return: MaybeNull]
+        public static VmbCameraInfo? GetFirstCamera() => CamerasList(true)?[0]; // Null propagation.
+        #endregion End – List Cameras 
     }
 }
