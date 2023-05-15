@@ -44,6 +44,7 @@ namespace VmbNET
         public static unsafe void Startup([AllowNull] char* pathConfiguration)
         {
             DetectError(VmbStartup(pathConfiguration));
+
             [DllImport(dllName, BestFitMapping = false, CallingConvention = CallingConvention.StdCall,
             EntryPoint = nameof(VmbStartup), ExactSpelling = true, PreserveSig = true, SetLastError = false)]
             static unsafe extern ErrorType VmbStartup(char* pathConfiguration);
@@ -281,30 +282,33 @@ namespace VmbNET
         }
         #endregion End – Open Cameras
 
-        //#region Frame Announce
-        //[MethodImpl(MethodImplOptions.AggressiveInlining)]
-        //public static unsafe void FrameAnnounce(VmbHandle cameraHandle,
-        //                                         VmbFrame* pFrame)
-        //{
-        //    DetectError(VmbFrameAnnounce(cameraHandle, pFrame));
+        #region Frame Announce
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static unsafe void FrameAnnounce(VmbHandle cameraHandle,
+                                                 VmbFrame* pFrame)
+        {
+            DetectError(VmbFrameAnnounce(cameraHandle, pFrame));
 
-        //    [DllImport(dllName, BestFitMapping = false, CallingConvention = CallingConvention.StdCall,
-        //     EntryPoint = nameof(VmbFrameAnnounce), ExactSpelling = true, SetLastError = false)]
-        //    static unsafe extern ErrorType VmbFrameAnnounce(
-        //                              VmbHandle cameraHandle,
-        //                              VmbFrame* pFrame,
-        //                              [ConstantExpected(Max = VmbFrame.Size, Min = VmbFrame.Size)]
-        //                               uint sizeofFrame = VmbFrame.Size);
-        //}
+            [DllImport(dllName, BestFitMapping = false, CallingConvention = CallingConvention.StdCall,
+             EntryPoint = nameof(VmbFrameAnnounce), ExactSpelling = true, SetLastError = false)]
+            static unsafe extern ErrorType VmbFrameAnnounce(
+                                      VmbHandle cameraHandle,
+                                      VmbFrame* pFrame,
+                                      [ConstantExpected(Max = VmbFrame.Size, Min = VmbFrame.Size)]
+                                       uint sizeofFrame = VmbFrame.Size);
+        }
 
-        //public static VmbFrame CreateFrameAndAnnounce(VmbHandle cameraHandle)
-        //{
-        //    VmbFrame frame = new();
-        //    unsafe { FrameAnnounce(cameraHandle, &frame); }
-        //    return frame;
-        //}
+        public static VmbFrame CreateFrameAndAnnounce(VmbHandle cameraHandle, uint payloadSize)
+        {
+            VmbFrame frame = new()
+            {
+                bufferSize = payloadSize
+            };
+            unsafe { FrameAnnounce(cameraHandle, &frame); }
+            return frame;
+        }
 
-        //#endregion End – Frame Announce
+        #endregion End – Frame Announce
 
         #region Get Payload Size
         public static unsafe uint PayloadSizeGet(VmbHandle handle)

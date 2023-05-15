@@ -28,6 +28,8 @@ namespace VmbNET
 
         private readonly VmbAccessMode PermittedAccess { get; }
 
+        public ReadOnlySpan<VmbHandle> Streams => new(StreamHandles, (int)StreamCount);
+
 
         public readonly string CameraIdStr => PtrToStr(CameraIdString);
         public readonly string CameraIdExtendedStr => PtrToStr(CameraIdExtended);
