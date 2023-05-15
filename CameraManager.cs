@@ -255,8 +255,10 @@ namespace VmbNET
         public static unsafe VmbHandle CameraOpen(byte* idString,
                                                   VmbAccessMode accessMode = VmbAccessMode.VmbAccessModeExclusive)
         {
+            ArgumentNullException.ThrowIfNull(idString, nameof(idString));
+
             VmbHandle cameraHandle;
-            DetectError(VmbCameraOpen(idString, accessMode, &cameraHandle));
+            DetectError(VmbCameraOpen(idString!, accessMode, &cameraHandle));
             return cameraHandle;
 
             [DllImport(dllName, BestFitMapping = false, CallingConvention = CallingConvention.StdCall,
@@ -265,7 +267,7 @@ namespace VmbNET
         }
 
         [SkipLocalsInit]
-        public static unsafe VmbHandle CameraOpen(VmbCameraInfo camera,
+        public static unsafe VmbHandle CameraOpen([DisallowNull] VmbCameraInfo camera,
                                                   VmbAccessMode accessMode = VmbAccessMode.VmbAccessModeExclusive) =>
             CameraOpen(camera.CameraIdExtended, accessMode);
 
@@ -279,29 +281,44 @@ namespace VmbNET
         }
         #endregion End – Open Cameras
 
-        #region Frame Announce
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static unsafe void FrameAnnounce(VmbHandle cameraHandle,
-                                                 VmbFrame* pFrame)
+        //#region Frame Announce
+        //[MethodImpl(MethodImplOptions.AggressiveInlining)]
+        //public static unsafe void FrameAnnounce(VmbHandle cameraHandle,
+        //                                         VmbFrame* pFrame)
+        //{
+        //    DetectError(VmbFrameAnnounce(cameraHandle, pFrame));
+
+        //    [DllImport(dllName, BestFitMapping = false, CallingConvention = CallingConvention.StdCall,
+        //     EntryPoint = nameof(VmbFrameAnnounce), ExactSpelling = true, SetLastError = false)]
+        //    static unsafe extern ErrorType VmbFrameAnnounce(
+        //                              VmbHandle cameraHandle,
+        //                              VmbFrame* pFrame,
+        //                              [ConstantExpected(Max = VmbFrame.Size, Min = VmbFrame.Size)]
+        //                               uint sizeofFrame = VmbFrame.Size);
+        //}
+
+        //public static VmbFrame CreateFrameAndAnnounce(VmbHandle cameraHandle)
+        //{
+        //    VmbFrame frame = new();
+        //    unsafe { FrameAnnounce(cameraHandle, &frame); }
+        //    return frame;
+        //}
+
+        //#endregion End – Frame Announce
+
+        #region Get Payload Size
+        public static unsafe uint PayloadSizeGet(VmbHandle handle)
         {
-            DetectError(VmbFrameAnnounce(cameraHandle, pFrame));
-    
+            ArgumentNullException.ThrowIfNull((void*)handle);
+            
+            uint payloadSize;
+            DetectError(VmbPayloadSizeGet(handle!, &payloadSize));
+            return payloadSize;
+
             [DllImport(dllName, BestFitMapping = false, CallingConvention = CallingConvention.StdCall,
-             EntryPoint = nameof(VmbFrameAnnounce), ExactSpelling = true, SetLastError = false)]
-            static unsafe extern ErrorType VmbFrameAnnounce(
-                                      VmbHandle cameraHandle,
-                                      VmbFrame* pFrame,
-                                      [ConstantExpected(Max = VmbFrame.Size, Min = VmbFrame.Size)]
-                                       uint sizeofFrame = VmbFrame.Size);
+            EntryPoint = nameof(VmbPayloadSizeGet), ExactSpelling = true, SetLastError = false)]
+            unsafe static extern ErrorType VmbPayloadSizeGet(VmbHandle handle, uint* payloadSize);
         }
-
-        public static VmbFrame CreateFrameAndAnnounce(VmbHandle cameraHandle)
-        {
-            VmbFrame frame = new();
-            unsafe { FrameAnnounce(cameraHandle, &frame); }
-            return frame;
-        }
-
-        #endregion End – Frame Announce
+        #endregion End – Get Payload Size
     }
 }
