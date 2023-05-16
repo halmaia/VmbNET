@@ -335,5 +335,30 @@ namespace VmbNET
             unsafe static extern ErrorType VmbPayloadSizeGet(VmbHandle handle, uint* payloadSize);
         }
         #endregion End – Get Payload Size
+
+        #region Revoke frames
+        public static void FrameRevokeAll(VmbHandle handle)
+        {
+            unsafe { ArgumentNullException.ThrowIfNull((void*)handle, nameof(handle)); }
+
+            DetectError(VmbFrameRevokeAll(handle!));
+
+            [DllImport(dllName, BestFitMapping = false, CallingConvention = CallingConvention.StdCall,
+            EntryPoint = nameof(VmbFrameRevokeAll), ExactSpelling = true, SetLastError = false)]
+            static extern ErrorType VmbFrameRevokeAll(VmbHandle handle);
+        }
+
+        public static unsafe void FrameRevoke(VmbHandle handle, VmbFrame* frame)
+        {
+            ArgumentNullException.ThrowIfNull((void*)handle, nameof(handle));
+            ArgumentNullException.ThrowIfNull(frame, nameof(frame));
+
+            DetectError(VmbFrameRevoke(handle!, frame!));
+
+            [DllImport(dllName, BestFitMapping = false, CallingConvention = CallingConvention.StdCall,
+            EntryPoint = nameof(VmbFrameRevoke), ExactSpelling = true, SetLastError = false)]
+            static extern unsafe ErrorType VmbFrameRevoke(VmbHandle handle, VmbFrame* frame);
+        }
+        #endregion End – Revoke frames
     }
 }
