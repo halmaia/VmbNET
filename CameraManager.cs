@@ -161,7 +161,7 @@ namespace VmbNET
         #endregion
 
         #region API Test
-        public static bool IsAPIUpAndRunning(out string errorMessage)
+        public static bool IsAPIUpAndRunning([NotNullWhen(false)] out string? errorMessage)
         {
             try
             {
@@ -174,7 +174,7 @@ namespace VmbNET
                 return false;
             }
 
-            errorMessage = string.Empty;
+            errorMessage = null;
             return true;
         }
         public static bool IsVmbCAvailable => File.Exists(dllName);
@@ -187,7 +187,7 @@ namespace VmbNET
         /// <remarks>This function can be called at anytime, even before the API is initialized.</remarks>
         /// <param name="versionInfo">Pointer to the struct where version information resides</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static unsafe void VersionQuery(VmbVersionInfo* versionInfo)
+        public static unsafe void VersionQuery([NotNull, DisallowNull] VmbVersionInfo* versionInfo)
         {
             ArgumentNullException.ThrowIfNull(versionInfo, nameof(versionInfo));
             DetectError(VmbVersionQuery(versionInfo!));
@@ -213,9 +213,10 @@ namespace VmbNET
         #endregion End – Version Query
 
         #region Close Camera
-        public static void CameraClose(VmbHandle cameraHandle)
+        public static void CameraClose([NotNull, DisallowNull] VmbHandle cameraHandle)
         {
             unsafe { ArgumentNullException.ThrowIfNull((void*)cameraHandle, nameof(cameraHandle)); }
+
             DetectError(VmbCameraClose(cameraHandle!));
 
             [DllImport(dllName, BestFitMapping = false, CallingConvention = CallingConvention.StdCall,
@@ -264,7 +265,7 @@ namespace VmbNET
 
         #region Open Cameras
         [SkipLocalsInit]
-        public static unsafe VmbHandle CameraOpen(byte* idString,
+        public static unsafe VmbHandle CameraOpen([NotNull, DisallowNull] byte* idString,
                                                   VmbAccessMode accessMode = VmbAccessMode.VmbAccessModeExclusive)
         {
             ArgumentNullException.ThrowIfNull(idString, nameof(idString));
@@ -295,8 +296,8 @@ namespace VmbNET
 
         #region Frame Announce
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static unsafe void FrameAnnounce(VmbHandle cameraHandle,
-                                                VmbFrame* pFrame)
+        public static unsafe void FrameAnnounce([NotNull, DisallowNull] VmbHandle cameraHandle,
+                                                [NotNull, DisallowNull] VmbFrame* pFrame)
         {
             ArgumentNullException.ThrowIfNull((void*)cameraHandle, nameof(cameraHandle));
             ArgumentNullException.ThrowIfNull(pFrame, nameof(pFrame));
@@ -312,7 +313,8 @@ namespace VmbNET
                                       uint sizeofFrame = VmbFrame.Size);
         }
 
-        public static unsafe VmbFrame CreateFrameAndAnnounce(VmbHandle cameraHandle, uint payloadSize)
+        public static unsafe VmbFrame CreateFrameAndAnnounce([NotNull, DisallowNull] VmbHandle cameraHandle,
+                                                             uint payloadSize)
         {
             VmbFrame frame = new(payloadSize);
             FrameAnnounce(cameraHandle, &frame);
@@ -322,9 +324,9 @@ namespace VmbNET
         #endregion End – Frame Announce
 
         #region Get Payload Size
-        public static unsafe uint PayloadSizeGet(VmbHandle handle)
+        public static unsafe uint PayloadSizeGet([NotNull, DisallowNull] VmbHandle handle)
         {
-            ArgumentNullException.ThrowIfNull((void*)handle);
+            ArgumentNullException.ThrowIfNull((void*)handle, nameof(handle));
 
             uint payloadSize;
             DetectError(VmbPayloadSizeGet(handle!, &payloadSize));
@@ -337,7 +339,7 @@ namespace VmbNET
         #endregion End – Get Payload Size
 
         #region Revoke frames
-        public static void FrameRevokeAll(VmbHandle handle)
+        public static void FrameRevokeAll([NotNull, DisallowNull] VmbHandle handle)
         {
             unsafe { ArgumentNullException.ThrowIfNull((void*)handle, nameof(handle)); }
 
@@ -348,7 +350,7 @@ namespace VmbNET
             static extern ErrorType VmbFrameRevokeAll(VmbHandle handle);
         }
 
-        public static unsafe void FrameRevoke(VmbHandle handle, VmbFrame* frame)
+        public static unsafe void FrameRevoke([NotNull, DisallowNull] VmbHandle handle, [NotNull, DisallowNull] VmbFrame* frame)
         {
             ArgumentNullException.ThrowIfNull((void*)handle, nameof(handle));
             ArgumentNullException.ThrowIfNull(frame, nameof(frame));
@@ -360,5 +362,24 @@ namespace VmbNET
             static extern unsafe ErrorType VmbFrameRevoke(VmbHandle handle, VmbFrame* frame);
         }
         #endregion End – Revoke frames
+
+        #region Capture Frame Queue
+        public static unsafe void CaptureFrameQueue([NotNull, DisallowNull] VmbHandle handle,
+                                                    [NotNull, DisallowNull] VmbFrame* frame,
+                                                    [NotNull, DisallowNull] delegate* unmanaged<VmbHandle, VmbHandle, VmbFrame, void> callback)
+        {
+            ArgumentNullException.ThrowIfNull((void*)handle, nameof(handle));
+            ArgumentNullException.ThrowIfNull(frame, nameof(frame));
+            ArgumentNullException.ThrowIfNull(callback, nameof(callback));
+
+            DetectError(VmbCaptureFrameQueue(handle!, frame!, callback!));
+
+            [DllImport(dllName, BestFitMapping = false, CallingConvention = CallingConvention.StdCall,
+            EntryPoint = nameof(VmbCaptureFrameQueue), ExactSpelling = true, SetLastError = false)]
+            static extern unsafe ErrorType VmbCaptureFrameQueue(VmbHandle handle,
+                                                                VmbFrame* frame,
+                                                                delegate* unmanaged<VmbHandle, VmbHandle, VmbFrame, void> callback);
+        }
+        #endregion End – Capture Frame Queue
     }
 }
