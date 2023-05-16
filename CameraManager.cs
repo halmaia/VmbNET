@@ -463,24 +463,38 @@ namespace VmbNET
             static extern unsafe ErrorType VmbFeatureCommandRun(VmbHandle handle, byte* name);
         }
 
-        public static void FeatureCommandRun([NotNull, DisallowNull] VmbHandle handle,
-                                             [NotNull, DisallowNull] ReadOnlySpan<byte> name)
+        public static unsafe void FeatureCommandRun([NotNull, DisallowNull] VmbHandle handle,
+                                                    [NotNull, DisallowNull] ReadOnlySpan<byte> name)
         {
             ArgumentOutOfRangeException.ThrowIfZero(name.Length, nameof(name));
 
-            unsafe
-            {
-                fixed (byte* pName = name)
-                    FeatureCommandRun(handle, pName);
-            }
+            fixed (byte* pName = name)
+                FeatureCommandRun(handle, pName);
         }
 
-        public static void AcquisitionStop([NotNull, DisallowNull] VmbHandle handle) => 
+        public static void AcquisitionStop([NotNull, DisallowNull] VmbHandle handle) =>
             FeatureCommandRun(handle, "AcquisitionStop"u8);
 
         public static void AcquisitionStart([NotNull, DisallowNull] VmbHandle handle) =>
             FeatureCommandRun(handle, "AcquisitionStart"u8);
 
         #endregion End – Command Run
+
+        #region Stop Recording
+        public static void StopRecording(VmbHandle handle)
+        {
+            // 1. Stop image acquisition
+            AcquisitionStop(handle);
+
+            // 2. Stop the capture engine
+            CaptureEnd(handle);
+
+            // 3. Flush the capture queue
+            CaptureQueueFlush(handle);
+
+            // 4. Revoke all frames
+            FrameRevokeAll(handle);
+        }
+        #endregion End – Stop Recording
     }
 }
