@@ -2,6 +2,7 @@
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using static System.Runtime.InteropServices.JavaScript.JSType;
 using VmbHandle = nuint;
 
 namespace VmbNET
@@ -339,6 +340,11 @@ namespace VmbNET
         #endregion End – Get Payload Size
 
         #region Revoke frames
+        /// <summary>
+        /// In case of an failure some of the frames may have been revoked. To prevent this it is recommended to call
+        /// CaptureQueueFlush for the same handle before invoking this function.
+        /// </summary>
+        /// <param name="handle">Handle for a stream or camera.</param>
         public static void FrameRevokeAll([NotNull, DisallowNull] VmbHandle handle)
         {
             unsafe { ArgumentNullException.ThrowIfNull((void*)handle, nameof(handle)); }
@@ -394,5 +400,43 @@ namespace VmbNET
             static extern ErrorType VmbCaptureQueueFlush(VmbHandle handle);
         }
         #endregion End – Capture Queue Flush
+
+        #region Capture Start
+        /// <summary>
+        /// Prepare the API for incoming frames.
+        /// </summary>
+        /// <param name="handle">Handle for a camera or a stream.</param>
+        public static void CaptureStart([NotNull, DisallowNull] VmbHandle handle)
+        {
+            unsafe { ArgumentNullException.ThrowIfNull((void*)handle, nameof(handle)); }
+
+            DetectError(VmbCaptureStart(handle!));
+
+            [DllImport(dllName, BestFitMapping = false, CallingConvention = CallingConvention.StdCall,
+            EntryPoint = nameof(VmbCaptureStart), ExactSpelling = true, SetLastError = false)]
+            static extern ErrorType VmbCaptureStart(VmbHandle handle);
+        }
+        #endregion End – Capture End
+
+        #region Capture Start
+        /// <summary>
+        /// Stop the API from being able to receive frames. The frame callback will not be called anymore.
+        /// </summary>
+        /// <param name="handle">Handle for a camera or a stream.</param>
+        /// <remarks>
+        /// This function waits for the completion of the last callback for the current capture.
+        /// If the callback does not return in finite time, this function may not return in finite time either.
+        /// </remarks>
+        public static void CaptureEnd([NotNull, DisallowNull] VmbHandle handle)
+        {
+            unsafe { ArgumentNullException.ThrowIfNull((void*)handle, nameof(handle)); }
+
+            DetectError(VmbCaptureEnd(handle!));
+
+            [DllImport(dllName, BestFitMapping = false, CallingConvention = CallingConvention.StdCall,
+            EntryPoint = nameof(VmbCaptureEnd), ExactSpelling = true, SetLastError = false)]
+            static extern ErrorType VmbCaptureEnd(VmbHandle handle);
+        }
+        #endregion End – Capture Start
     }
 }
