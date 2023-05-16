@@ -370,13 +370,23 @@ namespace VmbNET
         #endregion End – Revoke frames
 
         #region Capture Frame Queue
+        /// <summary>
+        /// Queue frames that may be filled during frame capturing.
+        /// The given frame is put into a queue that will be filled sequentially.
+        /// The order in which the frames are filled is determined by the order in which they are queued.
+        /// If the frame was announced with FrameAnnounce() before, the application
+        /// has to ensure that the frame is also revoked by calling FrameRevoke() or
+        /// FrameRevokeAll() when cleaning up.
+        /// </summary>
+        /// <param name="handle">Handle of a camera or stream.</param>
+        /// <param name="frame">Pointer to an already announced frame.</param>
+        /// <param name="callback">Callback to be run when the frame is complete. Null is OK.</param>
         public static unsafe void CaptureFrameQueue([NotNull, DisallowNull] VmbHandle handle,
                                                     [NotNull, DisallowNull] VmbFrame* frame,
-                                                    [NotNull, DisallowNull] delegate* unmanaged<VmbHandle, VmbHandle, VmbFrame, void> callback)
+                                                    delegate* unmanaged<VmbHandle, VmbHandle, VmbFrame, void> callback)
         {
             ArgumentNullException.ThrowIfNull((void*)handle, nameof(handle));
             ArgumentNullException.ThrowIfNull(frame, nameof(frame));
-            ArgumentNullException.ThrowIfNull(callback, nameof(callback));
 
             DetectError(VmbCaptureFrameQueue(handle!, frame!, callback!));
 
@@ -438,5 +448,39 @@ namespace VmbNET
             static extern ErrorType VmbCaptureEnd(VmbHandle handle);
         }
         #endregion End – Capture Start
+
+        #region Command Run
+        public static unsafe void FeatureCommandRun([NotNull, DisallowNull] VmbHandle handle,
+                                                    [NotNull, DisallowNull] byte* name)
+        {
+            ArgumentNullException.ThrowIfNull((void*)handle, nameof(handle));
+            ArgumentNullException.ThrowIfNull(name, nameof(name));
+
+            DetectError(VmbFeatureCommandRun(handle!, name!));
+
+            [DllImport(dllName, BestFitMapping = false, CallingConvention = CallingConvention.StdCall,
+            EntryPoint = nameof(VmbFeatureCommandRun), ExactSpelling = true, SetLastError = false)]
+            static extern unsafe ErrorType VmbFeatureCommandRun(VmbHandle handle, byte* name);
+        }
+
+        public static void FeatureCommandRun([NotNull, DisallowNull] VmbHandle handle,
+                                             [NotNull, DisallowNull] ReadOnlySpan<byte> name)
+        {
+            ArgumentOutOfRangeException.ThrowIfZero(name.Length, nameof(name));
+
+            unsafe
+            {
+                fixed (byte* pName = name)
+                    FeatureCommandRun(handle, pName);
+            }
+        }
+
+        public static void AcquisitionStop([NotNull, DisallowNull] VmbHandle handle) => 
+            FeatureCommandRun(handle, "AcquisitionStop"u8);
+
+        public static void AcquisitionStart([NotNull, DisallowNull] VmbHandle handle) =>
+            FeatureCommandRun(handle, "AcquisitionStart"u8);
+
+        #endregion End – Command Run
     }
 }
