@@ -1,7 +1,7 @@
 ﻿namespace VmbNET
 {
     [Flags]
-    internal enum VmbFrameFlags: uint
+    public enum VmbFrameFlags: uint
     {
         VmbFrameFlagsNone = 0,        //!< No additional information is provided
         VmbFrameFlagsDimension = 1,        //!< VmbFrame_t::width and VmbFrame_t::height are provided

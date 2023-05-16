@@ -14,7 +14,7 @@ namespace VmbNET
             var frm = CameraManager.CreateFrameAndAnnounce(h, siz);
             CameraManager.CameraClose(h);
             CameraManager.Shutdown();
-            NativeMemory.Free(frm.buffer);
+            NativeMemory.Free(frm.Buffer);
         }
     }
 }

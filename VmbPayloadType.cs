@@ -1,6 +1,6 @@
 ﻿namespace VmbNET
 {
-    internal enum VmbPayloadType : uint
+    public enum VmbPayloadType : uint
     {
         VmbPayloadTypeUnknown = 0,        //!< Unknown payload type
         VmbPayloadTypeImage = 1,        //!< image data

@@ -43,7 +43,7 @@ namespace VmbNET
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static unsafe void Startup([AllowNull] char* pathConfiguration)
         {
-            DetectError(VmbStartup(pathConfiguration));
+            DetectError(VmbStartup(pathConfiguration!));
 
             [DllImport(dllName, BestFitMapping = false, CallingConvention = CallingConvention.StdCall,
             EntryPoint = nameof(VmbStartup), ExactSpelling = true, PreserveSig = true, SetLastError = false)]
@@ -93,6 +93,7 @@ namespace VmbNET
         public static void Startup([DisallowNull] DirectoryInfo directoryInfo)
         {
             ArgumentNullException.ThrowIfNull(directoryInfo, nameof(directoryInfo));
+
             if (!directoryInfo!.Exists) // Early exit.
                 throw new DirectoryNotFoundException();
 
@@ -135,6 +136,7 @@ namespace VmbNET
         {
             ArgumentNullException.ThrowIfNull(paths, nameof(paths));
             ArgumentOutOfRangeException.ThrowIfZero(paths!.Length, nameof(paths));
+
             if (separator is not ',' or ';')
                 throw new ArgumentOutOfRangeException(nameof(separator), "Use semicolon for Windows or colon for other os!");
 
@@ -223,12 +225,27 @@ namespace VmbNET
         #endregion End – Close Camera
 
         #region List Cameras
+        public static unsafe void CamerasList(VmbCameraInfo* pCameraInfo, uint listLength,
+                                              uint* pNumFound,
+                                              uint sizeofCameraInfo)
+        {
+            ArgumentNullException.ThrowIfNull(pNumFound, nameof(pNumFound));
+
+            DetectError(VmbCamerasList(pCameraInfo, listLength, pNumFound!, sizeofCameraInfo));
+
+            [DllImport(dllName, BestFitMapping = false, CallingConvention = CallingConvention.StdCall,
+             EntryPoint = nameof(VmbCamerasList), ExactSpelling = true, SetLastError = false)]
+            static unsafe extern ErrorType VmbCamerasList(VmbCameraInfo* pCameraInfo, uint listLength,
+                                                          uint* pNumFound,
+                                                          uint sizeofCameraInfo);
+        }
+
         [return: MaybeNull]
         public static unsafe VmbCameraInfo[]? CamerasList(bool firstOnly = true)
         {
             uint NumFound;
             uint* pNumFound = &NumFound;
-            DetectError(VmbCamerasList(null, 0u, pNumFound, 0u));
+            CamerasList(null, 0u, pNumFound, 0u);
 
             if (NumFound == 0) return null;
             if (firstOnly) NumFound = 1u;
@@ -236,15 +253,9 @@ namespace VmbNET
             VmbCameraInfo[] cameraInfo = GC.AllocateUninitializedArray<VmbCameraInfo>((int)NumFound, false);
 
             fixed (VmbCameraInfo* pCameraInfo = cameraInfo)
-                DetectError(VmbCamerasList(pCameraInfo, NumFound, pNumFound, VmbCameraInfo.Size * NumFound));
+                CamerasList(pCameraInfo, NumFound, pNumFound, VmbCameraInfo.Size * NumFound);
 
             return cameraInfo;
-
-            [DllImport(dllName, BestFitMapping = false, CallingConvention = CallingConvention.StdCall,
-             EntryPoint = nameof(VmbCamerasList), ExactSpelling = true, SetLastError = false)]
-            static unsafe extern ErrorType VmbCamerasList(VmbCameraInfo* pCameraInfo, uint listLength,
-                                                          uint* pNumFound,
-                                                          uint sizeofCameraInfo);
         }
 
         [return: MaybeNull]
@@ -285,9 +296,12 @@ namespace VmbNET
         #region Frame Announce
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static unsafe void FrameAnnounce(VmbHandle cameraHandle,
-                                                 VmbFrame* pFrame)
+                                                VmbFrame* pFrame)
         {
-            DetectError(VmbFrameAnnounce(cameraHandle, pFrame));
+            ArgumentNullException.ThrowIfNull((void*)cameraHandle, nameof(cameraHandle));
+            ArgumentNullException.ThrowIfNull(pFrame, nameof(pFrame));
+
+            DetectError(VmbFrameAnnounce(cameraHandle!, pFrame!));
 
             [DllImport(dllName, BestFitMapping = false, CallingConvention = CallingConvention.StdCall,
              EntryPoint = nameof(VmbFrameAnnounce), ExactSpelling = true, SetLastError = false)]
@@ -295,16 +309,13 @@ namespace VmbNET
                                       VmbHandle cameraHandle,
                                       VmbFrame* pFrame,
                                       [ConstantExpected(Max = VmbFrame.Size, Min = VmbFrame.Size)]
-                                       uint sizeofFrame = VmbFrame.Size);
+                                      uint sizeofFrame = VmbFrame.Size);
         }
 
-        public static VmbFrame CreateFrameAndAnnounce(VmbHandle cameraHandle, uint payloadSize)
+        public static unsafe VmbFrame CreateFrameAndAnnounce(VmbHandle cameraHandle, uint payloadSize)
         {
-            VmbFrame frame = new()
-            {
-                bufferSize = payloadSize
-            };
-            unsafe { FrameAnnounce(cameraHandle, &frame); }
+            VmbFrame frame = new(payloadSize);
+            FrameAnnounce(cameraHandle, &frame);
             return frame;
         }
 
@@ -314,7 +325,7 @@ namespace VmbNET
         public static unsafe uint PayloadSizeGet(VmbHandle handle)
         {
             ArgumentNullException.ThrowIfNull((void*)handle);
-            
+
             uint payloadSize;
             DetectError(VmbPayloadSizeGet(handle!, &payloadSize));
             return payloadSize;
