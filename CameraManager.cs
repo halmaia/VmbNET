@@ -381,5 +381,18 @@ namespace VmbNET
                                                                 delegate* unmanaged<VmbHandle, VmbHandle, VmbFrame, void> callback);
         }
         #endregion End – Capture Frame Queue
+
+        #region Capture Queue Flush
+        public static void CaptureQueueFlush([NotNull, DisallowNull] VmbHandle handle)
+        {
+            unsafe { ArgumentNullException.ThrowIfNull((void*)handle, nameof(handle)); }
+
+            DetectError(VmbCaptureQueueFlush(handle!));
+
+            [DllImport(dllName, BestFitMapping = false, CallingConvention = CallingConvention.StdCall,
+            EntryPoint = nameof(VmbCaptureQueueFlush), ExactSpelling = true, SetLastError = false)]
+            static extern ErrorType VmbCaptureQueueFlush(VmbHandle handle);
+        }
+        #endregion End – Capture Queue Flush
     }
 }
