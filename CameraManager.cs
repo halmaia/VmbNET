@@ -453,8 +453,7 @@ namespace VmbNET
         public static unsafe void FeatureCommandRun([NotNull, DisallowNull] VmbHandle handle,
                                                     [NotNull, DisallowNull] byte* name)
         {
-            ArgumentNullException.ThrowIfNull((void*)handle, nameof(handle));
-            ArgumentNullException.ThrowIfNull(name, nameof(name));
+            CheckFeatureArgs(handle, name);
 
             DetectError(VmbFeatureCommandRun(handle!, name!));
 
@@ -463,38 +462,118 @@ namespace VmbNET
             static extern unsafe ErrorType VmbFeatureCommandRun(VmbHandle handle, byte* name);
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining), SkipLocalsInit]
         public static unsafe void FeatureCommandRun([NotNull, DisallowNull] VmbHandle handle,
                                                     [NotNull, DisallowNull] ReadOnlySpan<byte> name)
         {
-            ArgumentOutOfRangeException.ThrowIfZero(name.Length, nameof(name));
-
             fixed (byte* pName = name)
                 FeatureCommandRun(handle, pName);
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void AcquisitionStop([NotNull, DisallowNull] VmbHandle handle) =>
             FeatureCommandRun(handle, "AcquisitionStop"u8);
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void AcquisitionStart([NotNull, DisallowNull] VmbHandle handle) =>
             FeatureCommandRun(handle, "AcquisitionStart"u8);
 
         #endregion End – Command Run
 
-        #region Stop Recording
-        public static void StopRecording(VmbHandle handle)
+        #region Stop Async Recording
+        public static void StopAsyncRecording([NotNull, DisallowNull] VmbHandle handle)
         {
-            // 1. Stop image acquisition
+            // 1. Stop image acquisition:
             AcquisitionStop(handle);
 
-            // 2. Stop the capture engine
+            // 2. Stop the capture engine:
             CaptureEnd(handle);
 
-            // 3. Flush the capture queue
+            // 3. Flush the capture queue:
             CaptureQueueFlush(handle);
 
-            // 4. Revoke all frames
+            // 4. Revoke all frames:
             FrameRevokeAll(handle);
         }
-        #endregion End – Stop Recording
+        #endregion End – Stop Async Recording
+
+        #region Feature Sets…
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static unsafe void CheckFeatureArgs([NotNull, DisallowNull] VmbHandle handle,
+                                                    [NotNull, DisallowNull] byte* name)
+        {
+            ArgumentNullException.ThrowIfNull((void*)handle, nameof(handle));
+            ArgumentNullException.ThrowIfNull(name, nameof(name));
+        }
+        public static unsafe void FeatureBoolSet([NotNull, DisallowNull] VmbHandle handle,
+                                                 [NotNull, DisallowNull] byte* name,
+                                                 bool value) 
+        {
+            CheckFeatureArgs(handle, name);
+
+            DetectError(VmbFeatureBoolSet(handle!, name!, value));
+
+            [DllImport(dllName, BestFitMapping = false, CallingConvention = CallingConvention.StdCall,
+            EntryPoint = nameof(VmbFeatureBoolSet), ExactSpelling = true, SetLastError = false)]
+            static extern unsafe ErrorType VmbFeatureBoolSet(VmbHandle handle, byte* name, bool value);
+        }
+
+        public static unsafe void FeatureBoolSet([NotNull, DisallowNull] VmbHandle handle,
+                                         [NotNull, DisallowNull] ReadOnlySpan<byte> name,
+                                         bool value)
+        {
+            fixed(byte* pName = name)
+                FeatureBoolSet(handle, name, value);
+        }
+
+        public static unsafe void FeatureIntSet([NotNull, DisallowNull] VmbHandle handle,
+                                         [NotNull, DisallowNull] byte* name,
+                                         long value)
+        {
+            CheckFeatureArgs(handle, name);
+
+            DetectError(VmbFeatureIntSet(handle!, name!, value));
+
+            [DllImport(dllName, BestFitMapping = false, CallingConvention = CallingConvention.StdCall,
+            EntryPoint = nameof(VmbFeatureIntSet), ExactSpelling = true, SetLastError = false)]
+            static extern unsafe ErrorType VmbFeatureIntSet(VmbHandle handle, byte* name, long value);
+        }
+
+        public static unsafe void FeatureIntSet([NotNull, DisallowNull] VmbHandle handle,
+                                         [NotNull, DisallowNull] ReadOnlySpan<byte> name,
+                                         long value)
+        {
+            fixed (byte* pName = name)
+                FeatureIntSet(handle, name, value);
+        }
+
+        public static unsafe void FeatureFloatSet([NotNull, DisallowNull] VmbHandle handle,
+                                         [NotNull, DisallowNull] byte* name,
+                                         double value)
+        {
+            CheckFeatureArgs(handle, name);
+
+            DetectError(VmbFeatureFloatSet(handle!, name!, value));
+
+            [DllImport(dllName, BestFitMapping = false, CallingConvention = CallingConvention.StdCall,
+            EntryPoint = nameof(VmbFeatureFloatSet), ExactSpelling = true, SetLastError = false)]
+            static extern unsafe ErrorType VmbFeatureFloatSet(VmbHandle handle, byte* name, double value);
+        }
+
+        public static unsafe void FeatureFloatSet([NotNull, DisallowNull] VmbHandle handle,
+                                         [NotNull, DisallowNull] ReadOnlySpan<byte> name,
+                                         double value)
+        {
+            fixed (byte* pName = name)
+                FeatureFloatSet(handle, name, value);
+        }
+
+        #endregion End – Feature Sets…
+
+        #region Convinience Sets
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static void SetAcquisitionFrameRate(VmbHandle handle, double frameRate) => 
+            FeatureFloatSet(handle, "AcquisitionFrameRate"u8, frameRate);
+        #endregion End – Convinience Sets
     }
 }
