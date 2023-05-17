@@ -14,7 +14,6 @@ namespace VmbNET
         #endregion End – Private Constants
 
         #region Error Handling
-        // TODO: Complete missing cases:
         [MethodImpl(MethodImplOptions.AggressiveInlining), SkipLocalsInit]
         private static void DetectError(ErrorType errorType)
         {
@@ -25,10 +24,57 @@ namespace VmbNET
             static void ThrowAPIError(ErrorType errorType) =>
             throw new Exception(errorType switch
             {
-                ErrorType.VmbErrorInternalFault => "Internal fault.",
-                ErrorType.VmbErrorSuccess => "No error.",
-                _ => "Unknown error type."
+                ErrorType.VmbErrorSuccess => "No error",
+                ErrorType.VmbErrorInternalFault => "Unexpected fault in VmbC or driver",
+                ErrorType.VmbErrorApiNotStarted => "::VmbStartup() was not called before the current command",
+                ErrorType.VmbErrorNotFound => "The designated instance (camera, feature etc.) cannot be found",
+                ErrorType.VmbErrorBadHandle => "The given handle is not valid",
+                ErrorType.VmbErrorDeviceNotOpen => "Device was not opened for usage",
+                ErrorType.VmbErrorInvalidAccess => "Operation is invalid with the current access mode",
+                ErrorType.VmbErrorBadParameter => "One of the parameters is invalid (usually an illegal pointer)",
+                ErrorType.VmbErrorStructSize => "The given struct size is not valid for this version of the API",
+                ErrorType.VmbErrorMoreData => "More data available in a string/list than space is provided",
+                ErrorType.VmbErrorWrongType => "Wrong feature type for this access function",
+                ErrorType.VmbErrorInvalidValue => "The value is not valid; either out of bounds or not an increment of the minimum",
+                ErrorType.VmbErrorTimeout => "Timeout during wait",
+                ErrorType.VmbErrorOther => "Other error",
+                ErrorType.VmbErrorResources => "Resources not available (e.g. memory)",
+                ErrorType.VmbErrorInvalidCall => "Call is invalid in the current context (e.g. callback)",
+                ErrorType.VmbErrorNoTL => "No transport layers are found",
+                ErrorType.VmbErrorNotImplemented => "API feature is not implemented",
+                ErrorType.VmbErrorNotSupported => "API feature is not supported",
+                ErrorType.VmbErrorIncomplete => "The current operation was not completed (e.g. a multiple registers read or write)",
+                ErrorType.VmbErrorIO => "Low level IO error in transport layer",
+                ErrorType.VmbErrorValidValueSetNotPresent => "The valid value set could not be retrieved, since the feature does not provide this property",
+                ErrorType.VmbErrorGenTLUnspecified => "Unspecified GenTL runtime error",
+                ErrorType.VmbErrorUnspecified => "Unspecified runtime error",
+                ErrorType.VmbErrorBusy => "The responsible module/entity is busy executing actions",
+                ErrorType.VmbErrorNoData => "The function has no data to work on",
+                ErrorType.VmbErrorParsingChunkData => "An error occurred parsing a buffer containing chunk data",
+                ErrorType.VmbErrorInUse => "Something is already in use",
+                ErrorType.VmbErrorUnknown => "Error condition unknown",
+                ErrorType.VmbErrorXml => "Error parsing XML",
+                ErrorType.VmbErrorNotAvailable => "Something is not available",
+                ErrorType.VmbErrorNotInitialized => "Something is not initialized",
+                ErrorType.VmbErrorInvalidAddress => "The given address is out of range or invalid for internal reasons",
+                ErrorType.VmbErrorAlready => "Something has already been done",
+                ErrorType.VmbErrorNoChunkData => "A frame expected to contain chunk data does not contain chunk data",
+                ErrorType.VmbErrorUserCallbackException => "A callback provided by the user threw an exception",
+                ErrorType.VmbErrorFeaturesUnavailable => "The XML for the module is currently not loaded; the module could be in the wrong state or the XML could not be retrieved or could not be parsed properly",
+                ErrorType.VmbErrorTLNotFound => "A required transport layer could not be found or loaded",
+                ErrorType.VmbErrorAmbiguous => "An entity cannot be uniquely identified based on the information provided",
+                ErrorType.VmbErrorRetriesExceeded => "Something could not be accomplished with a given number of retries",
+                ErrorType.VmbErrorInsufficientBufferCount => "The operation requires more buffers",
+                ErrorType.VmbErrorCustom => "User defined error (1).",
+                _ => "Unknown error.",
             });
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static void CheckProcessType()
+        {
+            if (nuint.Size != 8)
+                throw new PlatformNotSupportedException("Only 64-bit platforms are supported!");
         }
         #endregion
 
@@ -44,7 +90,8 @@ namespace VmbNET
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static unsafe void Startup([AllowNull] char* pathConfiguration)
         {
-            DetectError(VmbStartup(pathConfiguration!));
+            CheckProcessType();
+            DetectError(VmbStartup(pathConfiguration));
 
             [DllImport(dllName, BestFitMapping = false, CallingConvention = CallingConvention.StdCall,
             EntryPoint = nameof(VmbStartup), ExactSpelling = true, PreserveSig = true, SetLastError = false)]
@@ -166,6 +213,7 @@ namespace VmbNET
         {
             try
             {
+                CheckProcessType();
                 Startup();
                 Shutdown();
             }
@@ -190,7 +238,9 @@ namespace VmbNET
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static unsafe void VersionQuery([NotNull, DisallowNull] VmbVersionInfo* versionInfo)
         {
+            CheckProcessType();
             ArgumentNullException.ThrowIfNull(versionInfo, nameof(versionInfo));
+
             DetectError(VmbVersionQuery(versionInfo!));
 
             [DllImport(dllName, BestFitMapping = false, CallingConvention = CallingConvention.StdCall,
@@ -406,18 +456,31 @@ namespace VmbNET
         /// <param name="callback">Callback to be run when the frame is complete. Null is OK.</param>
         public static unsafe void CaptureFrameQueue([NotNull, DisallowNull] VmbHandle handle,
                                                     [NotNull, DisallowNull] VmbFrame* frame,
-                                                    delegate* unmanaged<VmbHandle, VmbHandle, VmbFrame, void> callback)
+                                                    delegate* unmanaged<VmbHandle, VmbHandle, VmbFrame*, void> callback)
         {
             ArgumentNullException.ThrowIfNull((void*)handle, nameof(handle));
             ArgumentNullException.ThrowIfNull(frame, nameof(frame));
 
-            DetectError(VmbCaptureFrameQueue(handle!, frame!, callback!));
+            DetectError(VmbCaptureFrameQueue(handle!, frame!, callback));
 
             [DllImport(dllName, BestFitMapping = false, CallingConvention = CallingConvention.StdCall,
             EntryPoint = nameof(VmbCaptureFrameQueue), ExactSpelling = true, SetLastError = false)]
             static extern unsafe ErrorType VmbCaptureFrameQueue(VmbHandle handle,
                                                                 VmbFrame* frame,
-                                                                delegate* unmanaged<VmbHandle, VmbHandle, VmbFrame, void> callback);
+                                                                delegate* unmanaged<VmbHandle, VmbHandle, VmbFrame*, void> callback);
+        }
+
+        public static unsafe void QueueFrames([NotNull, DisallowNull] VmbHandle handle,
+                                              [NotNull, DisallowNull] VmbFrame*[] frames,
+                                              delegate* unmanaged<VmbHandle, VmbHandle, VmbFrame*, void> callback)
+        {
+            ArgumentNullException.ThrowIfNull(frames, nameof(frames));
+            int len = frames!.Length;
+            ArgumentOutOfRangeException.ThrowIfZero(len, nameof(frames));
+
+            for (int i = 0; i < len;)
+                CaptureFrameQueue(handle, frames[i++], callback);
+
         }
         #endregion End – Capture Frame Queue
 
@@ -546,7 +609,7 @@ namespace VmbNET
                                          bool value)
         {
             fixed (byte* pName = name)
-                FeatureBoolSet(handle, name, value);
+                FeatureBoolSet(handle, pName, value);
         }
 
         public static unsafe void FeatureIntSet([NotNull, DisallowNull] VmbHandle handle,
@@ -567,12 +630,12 @@ namespace VmbNET
                                          long value)
         {
             fixed (byte* pName = name)
-                FeatureIntSet(handle, name, value);
+                FeatureIntSet(handle, pName, value);
         }
 
         public static unsafe void FeatureFloatSet([NotNull, DisallowNull] VmbHandle handle,
-                                         [NotNull, DisallowNull] byte* name,
-                                         double value)
+                                                  [NotNull, DisallowNull] byte* name,
+                                                  double value)
         {
             CheckFeatureArgs(handle, name);
 
@@ -584,19 +647,98 @@ namespace VmbNET
         }
 
         public static unsafe void FeatureFloatSet([NotNull, DisallowNull] VmbHandle handle,
-                                         [NotNull, DisallowNull] ReadOnlySpan<byte> name,
-                                         double value)
+                                                  [NotNull, DisallowNull] ReadOnlySpan<byte> name,
+                                                  double value)
         {
             fixed (byte* pName = name)
-                FeatureFloatSet(handle, name, value);
+                FeatureFloatSet(handle, pName, value);
         }
 
+        public static unsafe void FeatureEnumSet([NotNull, DisallowNull] VmbHandle handle,
+                                                 [NotNull, DisallowNull] byte* name,
+                                                 [NotNull, DisallowNull] byte* value)
+        {
+            CheckFeatureArgs(handle, name);
+            ArgumentNullException.ThrowIfNull(value, nameof(value));
+
+            DetectError(VmbFeatureEnumSet(handle!, name!, value!));
+
+            [DllImport(dllName, BestFitMapping = false, CallingConvention = CallingConvention.StdCall,
+            EntryPoint = nameof(VmbFeatureEnumSet), ExactSpelling = true, SetLastError = false)]
+            static extern unsafe ErrorType VmbFeatureEnumSet(VmbHandle handle, byte* name, byte* value);
+        }
+
+        public static unsafe void FeatureEnumSet([NotNull, DisallowNull] VmbHandle handle,
+                                                 [NotNull, DisallowNull] ReadOnlySpan<byte> name,
+                                                 [NotNull, DisallowNull] ReadOnlySpan<byte> value)
+        {
+            fixed (byte* pValue = value)
+            fixed (byte* pName = name)
+                FeatureEnumSet(handle, pName, pValue);
+        }
         #endregion End – Feature Sets…
 
         #region Convinience Sets
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void SetAcquisitionFrameRate(VmbHandle handle, double frameRate) =>
             FeatureFloatSet(handle, "AcquisitionFrameRate"u8, frameRate);
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static void SetDeviceLinkThroughputLimitModeToOff(VmbHandle handle) =>
+            FeatureEnumSet(handle, "DeviceLinkThroughputLimitMode"u8, "Off"u8);
+
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static void SetDeviceLinkThroughputLimitModeToOn(VmbHandle handle) =>
+            FeatureEnumSet(handle, "DeviceLinkThroughputLimitMode"u8, "On"u8);
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static void SetMaxDriverBuffersCount(VmbHandle handle, long newMaxValue) =>
+            FeatureIntSet(handle, "MaxDriverBuffersCount"u8, newMaxValue);
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static void SetAcquisitionModeToContinuous(VmbHandle handle) =>
+            FeatureEnumSet(handle, "AcquisitionMode"u8, "Continuous"u8);
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static void SetAcquisitionFrameRateEnableToTrue(VmbHandle handle) =>
+            FeatureBoolSet(handle, "AcquisitionFrameRateEnable"u8, true);
         #endregion End – Convinience Sets
+
+        #region Start Async Recording
+        public static unsafe VmbFrame*[] StartAsyncRecording([NotNull, DisallowNull] VmbHandle handle,
+                                                int numberOfBufferFrames,
+                                                double frameRate,
+                                                delegate* unmanaged<VmbHandle, VmbHandle, VmbFrame*, void> callback)
+        {
+            ArgumentOutOfRangeException.ThrowIfLessThan(numberOfBufferFrames, 3, nameof(numberOfBufferFrames));
+            ArgumentOutOfRangeException.ThrowIfNegative(frameRate, nameof(frameRate));
+
+            //SetMaxDriverBuffersCount(handle, numberOfBufferFrames);
+            SetDeviceLinkThroughputLimitModeToOff(handle);
+            SetAcquisitionModeToContinuous(handle);
+            SetAcquisitionFrameRateEnableToTrue(handle);
+            SetAcquisitionFrameRate(handle, frameRate);
+
+            VmbFrame*[] frames = CreateFramesAndAnnounce(handle, PayloadSizeGet(handle), numberOfBufferFrames);
+
+            CaptureStart(handle);
+
+            QueueFrames(handle, frames, callback);
+
+            AcquisitionStart(handle);
+
+            return frames;
+        }
+        #endregion End – Start Async Recording
+
+        #region Time Sync
+        public static void SyncTime(VmbHandle handle)
+        {
+            // TODO: Latch Sync:
+            throw new NotImplementedException();
+        }
+        #endregion End – Time Sync
+
     }
 }
