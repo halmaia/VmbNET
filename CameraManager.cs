@@ -726,6 +726,7 @@ namespace VmbNET
         #endregion End – Convinience Sets
 
         #region Start Async Recording
+        [SkipLocalsInit]
         public static unsafe VmbFrame*[] StartAsyncRecording([NotNull, DisallowNull] VmbHandle handle,
                                                 int numberOfBufferFrames,
                                                 double frameRate,
