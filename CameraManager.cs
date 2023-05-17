@@ -1,4 +1,5 @@
 ﻿using System.ComponentModel;
+using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
@@ -292,6 +293,7 @@ namespace VmbNET
                                                           uint sizeofCameraInfo);
         }
 
+        [SkipLocalsInit]
         [return: MaybeNull]
         public static unsafe VmbCameraInfo[]? CamerasList(bool firstOnly = true)
         {
@@ -302,7 +304,7 @@ namespace VmbNET
             if (NumFound == 0) return null;
             if (firstOnly) NumFound = 1u;
 
-            VmbCameraInfo[] cameraInfo = GC.AllocateUninitializedArray<VmbCameraInfo>((int)NumFound, false);
+            VmbCameraInfo[] cameraInfo = new VmbCameraInfo[NumFound];
 
             fixed (VmbCameraInfo* pCameraInfo = cameraInfo)
                 CamerasList(pCameraInfo, NumFound, pNumFound, VmbCameraInfo.Size * NumFound);
@@ -310,6 +312,7 @@ namespace VmbNET
             return cameraInfo;
         }
 
+        [SkipLocalsInit]
         [return: MaybeNull]
         public static VmbCameraInfo? GetFirstCamera() => CamerasList(true)?[0]; // Null propagation.
         #endregion End – List Cameras
@@ -336,12 +339,13 @@ namespace VmbNET
             CameraOpen(camera.CameraIdExtended, accessMode);
 
         [SkipLocalsInit]
-        public static VmbHandle OpenFirstCamera(VmbAccessMode accessMode = VmbAccessMode.VmbAccessModeExclusive)
+        public static unsafe VmbHandle OpenFirstCamera(VmbAccessMode accessMode = VmbAccessMode.VmbAccessModeExclusive)
         {
             VmbCameraInfo? firstCamera = GetFirstCamera();
-            return firstCamera is null ?
-                throw new NullReferenceException("No camera found!") :
-                CameraOpen(firstCamera!.Value, accessMode);
+            if (firstCamera.HasValue)
+                return CameraOpen(firstCamera.Value.CameraIdExtended, accessMode);
+
+            throw new NullReferenceException("No camera found!");
         }
         #endregion End – Open Cameras
 
@@ -364,18 +368,20 @@ namespace VmbNET
                                       uint sizeofFrame = VmbFrame.Size);
         }
 
+        [SkipLocalsInit]
         public static unsafe VmbFrame* CreateFrameAndAnnounce([NotNull, DisallowNull] VmbHandle cameraHandle,
                                                               uint payloadSize)
         {
-            void* ptr = NativeMemory.AlignedAlloc(VmbFrame.Size, 64);
-            NativeMemory.Clear(ptr, VmbFrame.Size);
-            ((uint*)ptr)[2] = payloadSize;
+            byte* ptr = (byte*)NativeMemory.AlignedAlloc(VmbFrame.Size, 64u);
+            Unsafe.InitBlock(ptr, 0, VmbFrame.Size);
+            *(uint*)(ptr + 8) = payloadSize;
             VmbFrame* pFrame = (VmbFrame*)ptr;
 
             FrameAnnounce(cameraHandle, pFrame);
             return pFrame;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining), SkipLocalsInit]
         public static unsafe void FreeAllocatedFrames(VmbFrame*[] frames)
         {
             for (int i = 0, len = frames.Length; i < len;)
@@ -385,6 +391,7 @@ namespace VmbNET
             }
         }
 
+        [SkipLocalsInit, MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static unsafe VmbFrame*[] CreateFramesAndAnnounce([NotNull, DisallowNull] VmbHandle cameraHandle,
                                                                          uint payloadSize,
                                                                          int numberOfFrames)
@@ -418,6 +425,7 @@ namespace VmbNET
         /// CaptureQueueFlush for the same handle before invoking this function.
         /// </summary>
         /// <param name="handle">Handle for a stream or camera.</param>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void FrameRevokeAll([NotNull, DisallowNull] VmbHandle handle)
         {
             unsafe { ArgumentNullException.ThrowIfNull((void*)handle, nameof(handle)); }
@@ -470,6 +478,7 @@ namespace VmbNET
                                                                 delegate* unmanaged<VmbHandle, VmbHandle, VmbFrame*, void> callback);
         }
 
+        [SkipLocalsInit]
         public static unsafe void QueueFrames([NotNull, DisallowNull] VmbHandle handle,
                                               [NotNull, DisallowNull] VmbFrame*[] frames,
                                               delegate* unmanaged<VmbHandle, VmbHandle, VmbFrame*, void> callback)
@@ -485,6 +494,7 @@ namespace VmbNET
         #endregion End – Capture Frame Queue
 
         #region Capture Queue Flush
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void CaptureQueueFlush([NotNull, DisallowNull] VmbHandle handle)
         {
             unsafe { ArgumentNullException.ThrowIfNull((void*)handle, nameof(handle)); }
@@ -523,6 +533,7 @@ namespace VmbNET
         /// This function waits for the completion of the last callback for the current capture.
         /// If the callback does not return in finite time, this function may not return in finite time either.
         /// </remarks>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void CaptureEnd([NotNull, DisallowNull] VmbHandle handle)
         {
             unsafe { ArgumentNullException.ThrowIfNull((void*)handle, nameof(handle)); }
@@ -591,6 +602,8 @@ namespace VmbNET
             ArgumentNullException.ThrowIfNull((void*)handle, nameof(handle));
             ArgumentNullException.ThrowIfNull(name, nameof(name));
         }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static unsafe void FeatureBoolSet([NotNull, DisallowNull] VmbHandle handle,
                                                  [NotNull, DisallowNull] byte* name,
                                                  bool value)
@@ -604,6 +617,7 @@ namespace VmbNET
             static extern unsafe ErrorType VmbFeatureBoolSet(VmbHandle handle, byte* name, bool value);
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining), SkipLocalsInit]
         public static unsafe void FeatureBoolSet([NotNull, DisallowNull] VmbHandle handle,
                                          [NotNull, DisallowNull] ReadOnlySpan<byte> name,
                                          bool value)
@@ -612,6 +626,7 @@ namespace VmbNET
                 FeatureBoolSet(handle, pName, value);
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static unsafe void FeatureIntSet([NotNull, DisallowNull] VmbHandle handle,
                                          [NotNull, DisallowNull] byte* name,
                                          long value)
@@ -625,6 +640,7 @@ namespace VmbNET
             static extern unsafe ErrorType VmbFeatureIntSet(VmbHandle handle, byte* name, long value);
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining), SkipLocalsInit]
         public static unsafe void FeatureIntSet([NotNull, DisallowNull] VmbHandle handle,
                                          [NotNull, DisallowNull] ReadOnlySpan<byte> name,
                                          long value)
@@ -633,6 +649,7 @@ namespace VmbNET
                 FeatureIntSet(handle, pName, value);
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static unsafe void FeatureFloatSet([NotNull, DisallowNull] VmbHandle handle,
                                                   [NotNull, DisallowNull] byte* name,
                                                   double value)
@@ -646,6 +663,7 @@ namespace VmbNET
             static extern unsafe ErrorType VmbFeatureFloatSet(VmbHandle handle, byte* name, double value);
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining), SkipLocalsInit]
         public static unsafe void FeatureFloatSet([NotNull, DisallowNull] VmbHandle handle,
                                                   [NotNull, DisallowNull] ReadOnlySpan<byte> name,
                                                   double value)
@@ -654,6 +672,7 @@ namespace VmbNET
                 FeatureFloatSet(handle, pName, value);
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static unsafe void FeatureEnumSet([NotNull, DisallowNull] VmbHandle handle,
                                                  [NotNull, DisallowNull] byte* name,
                                                  [NotNull, DisallowNull] byte* value)
@@ -668,6 +687,7 @@ namespace VmbNET
             static extern unsafe ErrorType VmbFeatureEnumSet(VmbHandle handle, byte* name, byte* value);
         }
 
+        [SkipLocalsInit]
         public static unsafe void FeatureEnumSet([NotNull, DisallowNull] VmbHandle handle,
                                                  [NotNull, DisallowNull] ReadOnlySpan<byte> name,
                                                  [NotNull, DisallowNull] ReadOnlySpan<byte> value)
@@ -737,6 +757,8 @@ namespace VmbNET
         {
             // TODO: Latch Sync:
             throw new NotImplementedException();
+
+
         }
         #endregion End – Time Sync
 

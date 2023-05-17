@@ -1,4 +1,5 @@
-﻿using System.Diagnostics.CodeAnalysis;
+﻿using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.Runtime.InteropServices;
 
 namespace VmbNET
@@ -7,6 +8,10 @@ namespace VmbNET
     {
         static unsafe void Main()
         {
+
+            var hi = Stopwatch.IsHighResolution;
+            var re = Stopwatch.GetTimestamp();
+            var fr = Stopwatch.Frequency;
 
             CameraManager.Startup();
             nuint handle = CameraManager.OpenFirstCamera();
