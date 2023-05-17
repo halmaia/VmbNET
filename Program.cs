@@ -1,6 +1,4 @@
-﻿using System.Runtime.InteropServices;
-
-namespace VmbNET
+﻿namespace VmbNET
 {
     internal static class Program
     {
@@ -11,10 +9,11 @@ namespace VmbNET
 
             var h = CameraManager.OpenFirstCamera();
             var siz = CameraManager.PayloadSizeGet(h);
-            var frm = CameraManager.CreateFrameAndAnnounce(h, siz);
+            var mf = CameraManager.CreateFramesAndAnnounce(h, siz, 16);
+            
             CameraManager.CameraClose(h);
             CameraManager.Shutdown();
-            NativeMemory.Free(frm.Buffer);
+            CameraManager.FreeAllocatedFrames(mf);
         }
     }
 }

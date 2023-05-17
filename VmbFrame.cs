@@ -5,13 +5,14 @@ namespace VmbNET
 {
     [StructLayout(LayoutKind.Sequential, Size = Size)]
     [DebuggerDisplay($"{{{nameof(ToString)}(),nq}}")]
-    public unsafe readonly struct VmbFrame
+    public unsafe readonly ref struct VmbFrame
     {
         public const int Size = 112;
 
         public VmbFrame(uint bufferSize,
             byte* buffer = null,
-            void* context0 = null, void* context1 = null, void* context2 = null, void* context3 = null) : this()
+            void* context0 = null, void* context1 = null, 
+            void* context2 = null, void* context3 = null) : this()
         {
             Buffer = buffer;
             BufferSize = bufferSize;
@@ -28,7 +29,7 @@ namespace VmbNET
         public readonly void* Context1 { get; init; }
         public readonly void* Context2 { get; init; }
         public readonly void* Context3 { get; init; }
-        
+
         //----- Out -----
         public readonly VmbFrameStatus ReceiveStatus { get; }           //!< The resulting status of the receive operation
         public readonly ulong FrameID { get; }                 //!< Unique ID of this frame in this stream
@@ -44,6 +45,6 @@ namespace VmbNET
         public readonly bool ChunkDataPresent { get; }        //!< True if the transport layer reported chunk data to be present in the buffer
 
         public override readonly string ToString() =>
-            FrameID + "; " + Width + "×" + Height + "; " + Timestamp + " ns";
+            FrameID + "; " + Width + '×' + Height + "; " + Timestamp + " ns";
     }
 }

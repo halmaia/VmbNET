@@ -314,14 +314,37 @@ namespace VmbNET
                                       uint sizeofFrame = VmbFrame.Size);
         }
 
-        public static unsafe VmbFrame CreateFrameAndAnnounce([NotNull, DisallowNull] VmbHandle cameraHandle,
-                                                             uint payloadSize)
+        public static unsafe VmbFrame* CreateFrameAndAnnounce([NotNull, DisallowNull] VmbHandle cameraHandle,
+                                                              uint payloadSize)
         {
-            VmbFrame frame = new(payloadSize);
-            FrameAnnounce(cameraHandle, &frame);
-            return frame;
+            void* ptr = NativeMemory.AlignedAlloc(VmbFrame.Size, 64);
+            NativeMemory.Clear(ptr, VmbFrame.Size);
+            ((uint*)ptr)[2] = payloadSize;
+            VmbFrame* pFrame = (VmbFrame*)ptr;
+
+            FrameAnnounce(cameraHandle, pFrame);
+            return pFrame;
         }
 
+        public static unsafe void FreeAllocatedFrames(VmbFrame*[] frames)
+        {
+            for (int i = 0, len = frames.Length; i < len;)
+            {
+                NativeMemory.AlignedFree(frames[i]);
+                frames[i++] = null;
+            }
+        }
+
+        public static unsafe VmbFrame*[] CreateFramesAndAnnounce([NotNull, DisallowNull] VmbHandle cameraHandle,
+                                                                         uint payloadSize,
+                                                                         int numberOfFrames)
+        {
+            VmbFrame*[] frames = new VmbFrame*[numberOfFrames];
+            for (int i = 0; i < numberOfFrames;)
+                frames[i++] = CreateFrameAndAnnounce(cameraHandle, payloadSize);
+
+            return frames;
+        }
         #endregion End – Frame Announce
 
         #region Get Payload Size
@@ -507,7 +530,7 @@ namespace VmbNET
         }
         public static unsafe void FeatureBoolSet([NotNull, DisallowNull] VmbHandle handle,
                                                  [NotNull, DisallowNull] byte* name,
-                                                 bool value) 
+                                                 bool value)
         {
             CheckFeatureArgs(handle, name);
 
@@ -522,7 +545,7 @@ namespace VmbNET
                                          [NotNull, DisallowNull] ReadOnlySpan<byte> name,
                                          bool value)
         {
-            fixed(byte* pName = name)
+            fixed (byte* pName = name)
                 FeatureBoolSet(handle, name, value);
         }
 
@@ -572,7 +595,7 @@ namespace VmbNET
 
         #region Convinience Sets
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static void SetAcquisitionFrameRate(VmbHandle handle, double frameRate) => 
+        public static void SetAcquisitionFrameRate(VmbHandle handle, double frameRate) =>
             FeatureFloatSet(handle, "AcquisitionFrameRate"u8, frameRate);
         #endregion End – Convinience Sets
     }
