@@ -1,5 +1,6 @@
 ﻿using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
 namespace VmbNET
@@ -8,16 +9,14 @@ namespace VmbNET
     {
         static unsafe void Main()
         {
-
-            var hi = Stopwatch.IsHighResolution;
-            var re = Stopwatch.GetTimestamp();
-            var fr = Stopwatch.Frequency;
-
             CameraManager.Startup();
-            nuint handle = CameraManager.OpenFirstCamera();
-            VmbFrame*[] frames = CameraManager.StartAsyncRecording(handle, 16, 20, &FrameArrived);
 
-            Console.ReadKey();
+            (nuint handle, VmbFrame*[] frames) =
+                CameraManager.StartAsyncRecordingOnFirstCamera(16, 20, &FrameArrived);
+
+            CameraManager.FeatureInvalidationRegister(handle, "DeviceTemperature"u8, &TemperatureInvalidated, (void*)1);
+
+            _ = Console.ReadKey();
 
             CameraManager.StopAsyncRecording(handle);
             CameraManager.CameraClose(handle);
@@ -33,6 +32,14 @@ namespace VmbNET
                 Console.WriteLine(frame->Timestamp.ToString());
             }
             CameraManager.CaptureFrameQueue(cameraHandle, frame, &FrameArrived);
+        }
+
+        [UnmanagedCallersOnly]
+        private static unsafe void TemperatureInvalidated(nuint cameraHandle,
+                                                          byte* name,
+                                                          void* userContext) 
+        {
+            Console.WriteLine("Changed");
         }
     }
 }

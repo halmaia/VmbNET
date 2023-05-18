@@ -727,12 +727,25 @@ namespace VmbNET
 
         #region Start Async Recording
         [SkipLocalsInit]
+        public static unsafe (VmbHandle cameraHandle, VmbFrame*[] frames)
+            StartAsyncRecordingOnFirstCamera(int numberOfBufferFrames,
+                                             double frameRate,
+                                             delegate* unmanaged<VmbHandle, VmbHandle, VmbFrame*, void> callback)
+        {
+            VmbHandle cameraHandle;
+            return (cameraHandle = OpenFirstCamera(),
+            StartAsyncRecording(cameraHandle, numberOfBufferFrames, frameRate, callback));
+        }
+
+
+        [SkipLocalsInit]
         public static unsafe VmbFrame*[] StartAsyncRecording([NotNull, DisallowNull] VmbHandle handle,
                                                 int numberOfBufferFrames,
                                                 double frameRate,
                                                 delegate* unmanaged<VmbHandle, VmbHandle, VmbFrame*, void> callback)
         {
             ArgumentOutOfRangeException.ThrowIfLessThan(numberOfBufferFrames, 3, nameof(numberOfBufferFrames));
+            ArgumentOutOfRangeException.ThrowIfGreaterThan(numberOfBufferFrames, 64, nameof(numberOfBufferFrames));
             ArgumentOutOfRangeException.ThrowIfNegative(frameRate, nameof(frameRate));
 
             //SetMaxDriverBuffersCount(handle, numberOfBufferFrames);
@@ -758,10 +771,39 @@ namespace VmbNET
         {
             // TODO: Latch Sync:
             throw new NotImplementedException();
-
-
         }
         #endregion End – Time Sync
 
+        #region Feature Invalidation Register
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining), SkipLocalsInit]
+        public static unsafe void FeatureInvalidationRegister([NotNull, DisallowNull] VmbHandle handle,
+                                                          [NotNull, DisallowNull] ReadOnlySpan<byte> name,
+                                                          [NotNull, DisallowNull] delegate* unmanaged<VmbHandle, byte*, void*, void> callback,
+                                                          [NotNull, DisallowNull] void* userContext)
+        {
+            fixed (byte* pName = name)
+                FeatureInvalidationRegister(handle, pName, callback, userContext);
+        }
+
+        [SkipLocalsInit]
+        public static unsafe void FeatureInvalidationRegister([NotNull, DisallowNull] VmbHandle handle,
+                                                          [NotNull, DisallowNull] byte* name,
+                                                          [NotNull, DisallowNull] delegate* unmanaged<VmbHandle, byte*, void*, void> callback,
+                                                          [NotNull, DisallowNull] void* userContext)
+        {
+            CheckFeatureArgs(handle, name);
+            ArgumentNullException.ThrowIfNull(callback, nameof(callback));
+
+            DetectError(VmbFeatureInvalidationRegister(handle, name, callback, userContext));
+
+            [DllImport(dllName, BestFitMapping = false, CallingConvention = CallingConvention.StdCall,
+            EntryPoint = nameof(VmbFeatureInvalidationRegister), ExactSpelling = true, SetLastError = false)]
+            static extern unsafe ErrorType VmbFeatureInvalidationRegister(VmbHandle handle,
+                                                    byte* name,
+                                                    delegate* unmanaged<VmbHandle, byte*, void*, void> callback,
+                                                    void* userContext);
+        }
+        #endregion End – Feature Invalidation Register
     }
 }
