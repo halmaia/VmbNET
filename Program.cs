@@ -29,7 +29,7 @@ namespace VmbNET
         {
             if (frame->ReceiveStatus is VmbFrameStatus.VmbFrameStatusComplete)
             {
-                Console.WriteLine(frame->Timestamp.ToString());
+              //  Console.WriteLine(frame->Timestamp.ToString());
             }
             CameraManager.CaptureFrameQueue(cameraHandle, frame, &FrameArrived);
         }
@@ -39,7 +39,7 @@ namespace VmbNET
                                                           byte* name,
                                                           void* userContext) 
         {
-            Console.WriteLine("Changed");
+            Console.WriteLine(CameraManager.FeatureFloatGet(cameraHandle, name));
         }
     }
 }

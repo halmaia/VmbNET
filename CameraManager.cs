@@ -805,5 +805,43 @@ namespace VmbNET
                                                     void* userContext);
         }
         #endregion End – Feature Invalidation Register
+
+        #region Feature Sets
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static unsafe void FeatureFloatGet([NotNull, DisallowNull] VmbHandle handle,
+                                          [NotNull, DisallowNull] byte* name,
+                                          [NotNull, DisallowNull] double* value)
+        {
+            CheckFeatureArgs(handle, name);
+            ArgumentNullException.ThrowIfNull(value, nameof(value));
+
+            DetectError(VmbFeatureFloatGet(handle!, name!, value!));
+
+            [DllImport(dllName, BestFitMapping = false, CallingConvention = CallingConvention.StdCall,
+            EntryPoint = nameof(VmbFeatureFloatGet), ExactSpelling = true, SetLastError = false)]
+            static extern unsafe ErrorType VmbFeatureFloatGet(VmbHandle handle, byte* name, double* value);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining), SkipLocalsInit]
+        public static unsafe double FeatureFloatGet([NotNull, DisallowNull] VmbHandle handle,
+                                                  [NotNull, DisallowNull] ReadOnlySpan<byte> name)
+        {
+            fixed (byte* pName = name)
+                return FeatureFloatGet(handle, pName);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining), SkipLocalsInit]
+        public static unsafe double FeatureFloatGet([NotNull, DisallowNull] VmbHandle handle,
+                                                    [NotNull, DisallowNull] byte* name)
+        {
+            double value;
+            FeatureFloatGet(handle, name, &value);
+            return value;
+        }
+        #endregion  End – Feature Sets
+
+        #region Experiments
+
+        #endregion Experiments
     }
 }
