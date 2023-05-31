@@ -780,7 +780,7 @@ namespace VmbNET
         public static unsafe void FeatureInvalidationRegister([NotNull, DisallowNull] VmbHandle handle,
                                                           [NotNull, DisallowNull] ReadOnlySpan<byte> name,
                                                           [NotNull, DisallowNull] delegate* unmanaged<VmbHandle, byte*, void*, void> callback,
-                                                          [NotNull, DisallowNull] void* userContext)
+                                                          void* userContext)
         {
             fixed (byte* pName = name)
                 FeatureInvalidationRegister(handle, pName, callback, userContext);
@@ -790,7 +790,7 @@ namespace VmbNET
         public static unsafe void FeatureInvalidationRegister([NotNull, DisallowNull] VmbHandle handle,
                                                           [NotNull, DisallowNull] byte* name,
                                                           [NotNull, DisallowNull] delegate* unmanaged<VmbHandle, byte*, void*, void> callback,
-                                                          [NotNull, DisallowNull] void* userContext)
+                                                          void* userContext)
         {
             CheckFeatureArgs(handle, name);
             ArgumentNullException.ThrowIfNull(callback, nameof(callback));
@@ -805,6 +805,14 @@ namespace VmbNET
                                                     void* userContext);
         }
         #endregion End – Feature Invalidation Register
+
+        #region Register Device Temperature Callback
+        public static unsafe void RegisterDeviceTemperatureCallback([NotNull, DisallowNull] VmbHandle handle,
+                                                                    [NotNull, DisallowNull] delegate* unmanaged<VmbHandle, byte*, void*, void> callback,
+                                                                    void* userContext = null) => 
+            FeatureInvalidationRegister(handle, "DeviceTemperature"u8, callback, userContext);
+
+        #endregion  End – Register Device Temperature Callback
 
         #region Feature Sets
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

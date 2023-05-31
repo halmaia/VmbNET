@@ -14,7 +14,7 @@ namespace VmbNET
             (nuint handle, VmbFrame*[] frames) =
                 CameraManager.StartAsyncRecordingOnFirstCamera(16, 20, &FrameArrived);
 
-            CameraManager.FeatureInvalidationRegister(handle, "DeviceTemperature"u8, &TemperatureInvalidated, (void*)1);
+            CameraManager.RegisterDeviceTemperatureCallback(handle, &TemperatureInvalidated);
 
             _ = Console.ReadKey();
 
