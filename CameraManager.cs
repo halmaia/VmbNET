@@ -833,13 +833,16 @@ namespace VmbNET
         }
         #endregion End – Feature Invalidation UnRegister
 
-        #region Register Device Temperature Callback
+        #region Register/UnRegister Device Temperature Callback
         public static unsafe void RegisterDeviceTemperatureCallback([NotNull, DisallowNull] VmbHandle handle,
                                                                     [NotNull, DisallowNull] delegate* unmanaged<VmbHandle, byte*, void*, void> callback,
                                                                     void* userContext = null) =>
             FeatureInvalidationRegister(handle, "DeviceTemperature"u8, callback, userContext);
 
-        #endregion  End – Register Device Temperature Callback
+        public static unsafe void UnRegisterDeviceTemperatureCallback([NotNull, DisallowNull] VmbHandle handle,
+                                                                      [NotNull, DisallowNull] delegate* unmanaged<VmbHandle, byte*, void*, void> callback) =>
+           FeatureInvalidationUnRegister(handle, "DeviceTemperature"u8, callback);
+        #endregion  End – Register/UnRegister Device Temperature Callback
 
         #region Feature Gets
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

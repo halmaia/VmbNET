@@ -16,6 +16,7 @@ namespace VmbNET
 
             _ = Console.ReadKey();
 
+            CameraManager.FeatureInvalidationUnRegister()
             CameraManager.StopAsyncRecording(handle);
             CameraManager.CameraClose(handle);
             CameraManager.Shutdown();
