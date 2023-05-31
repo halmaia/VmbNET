@@ -707,7 +707,6 @@ namespace VmbNET
         public static void SetDeviceLinkThroughputLimitModeToOff(VmbHandle handle) =>
             FeatureEnumSet(handle, "DeviceLinkThroughputLimitMode"u8, "Off"u8);
 
-
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void SetDeviceLinkThroughputLimitModeToOn(VmbHandle handle) =>
             FeatureEnumSet(handle, "DeviceLinkThroughputLimitMode"u8, "On"u8);
@@ -814,7 +813,7 @@ namespace VmbNET
 
         #endregion  End – Register Device Temperature Callback
 
-        #region Feature Sets
+        #region Feature Gets
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static unsafe void FeatureFloatGet([NotNull, DisallowNull] VmbHandle handle,
                                           [NotNull, DisallowNull] byte* name,
@@ -846,7 +845,7 @@ namespace VmbNET
             FeatureFloatGet(handle, name, &value);
             return value;
         }
-        #endregion  End – Feature Sets
+        #endregion  End – Feature Gets
 
         #region Experiments
 
