@@ -805,10 +805,38 @@ namespace VmbNET
         }
         #endregion End – Feature Invalidation Register
 
+        #region Feature Invalidation UnRegister
+        [MethodImpl(MethodImplOptions.AggressiveInlining), SkipLocalsInit]
+        public static unsafe void FeatureInvalidationUnRegister([NotNull, DisallowNull] VmbHandle handle,
+                                                  [NotNull, DisallowNull] ReadOnlySpan<byte> name,
+                                                  [NotNull, DisallowNull] delegate* unmanaged<VmbHandle, byte*, void*, void> callback)
+        {
+            fixed (byte* pName = name)
+                FeatureInvalidationUnRegister(handle, pName, callback);
+        }
+
+        [SkipLocalsInit]
+        public static unsafe void FeatureInvalidationUnRegister([NotNull, DisallowNull] VmbHandle handle,
+                                                  [NotNull, DisallowNull] byte* name,
+                                                  [NotNull, DisallowNull] delegate* unmanaged<VmbHandle, byte*, void*, void> callback)
+        {
+            CheckFeatureArgs(handle, name);
+            ArgumentNullException.ThrowIfNull(callback, nameof(callback));
+
+            DetectError(VmbFeatureInvalidationUnregister(handle, name, callback));
+
+            [DllImport(dllName, BestFitMapping = false, CallingConvention = CallingConvention.StdCall,
+            EntryPoint = nameof(VmbFeatureInvalidationUnregister), ExactSpelling = true, SetLastError = false)]
+            static extern unsafe ErrorType VmbFeatureInvalidationUnregister(VmbHandle handle,
+                                                                          byte* name,
+                                                                          delegate* unmanaged<VmbHandle, byte*, void*, void> callback);
+        }
+        #endregion End – Feature Invalidation UnRegister
+
         #region Register Device Temperature Callback
         public static unsafe void RegisterDeviceTemperatureCallback([NotNull, DisallowNull] VmbHandle handle,
                                                                     [NotNull, DisallowNull] delegate* unmanaged<VmbHandle, byte*, void*, void> callback,
-                                                                    void* userContext = null) => 
+                                                                    void* userContext = null) =>
             FeatureInvalidationRegister(handle, "DeviceTemperature"u8, callback, userContext);
 
         #endregion  End – Register Device Temperature Callback
@@ -816,8 +844,8 @@ namespace VmbNET
         #region Feature Gets
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static unsafe void FeatureFloatGet([NotNull, DisallowNull] VmbHandle handle,
-                                          [NotNull, DisallowNull] byte* name,
-                                          [NotNull, DisallowNull] double* value)
+                                                  [NotNull, DisallowNull] byte* name,
+                                                  [NotNull, DisallowNull] double* value)
         {
             CheckFeatureArgs(handle, name);
             ArgumentNullException.ThrowIfNull(value, nameof(value));

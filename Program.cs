@@ -1,6 +1,4 @@
-﻿using System.Diagnostics;
-using System.Diagnostics.CodeAnalysis;
-using System.Runtime.CompilerServices;
+﻿using System.Diagnostics.CodeAnalysis;
 using System.Runtime.InteropServices;
 
 namespace VmbNET
@@ -29,7 +27,7 @@ namespace VmbNET
         {
             if (frame->ReceiveStatus is VmbFrameStatus.VmbFrameStatusComplete)
             {
-              //  Console.WriteLine(frame->Timestamp.ToString());
+                Console.WriteLine(frame->Timestamp.ToString());
             }
             CameraManager.CaptureFrameQueue(cameraHandle, frame, &FrameArrived);
         }
@@ -39,7 +37,7 @@ namespace VmbNET
                                                           byte* name,
                                                           void* userContext) 
         {
-            Console.WriteLine(CameraManager.FeatureFloatGet(cameraHandle, name));
+            Console.WriteLine(CameraManager.FeatureFloatGet(cameraHandle, name).ToString()+"°C");
         }
     }
 }
