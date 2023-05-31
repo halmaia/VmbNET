@@ -8,6 +8,7 @@ namespace VmbNET
     public unsafe readonly ref struct VmbFrame
     {
         public const int Size = 112;
+        public static ulong TimeOffset { get; set; } = 0;
 
         public VmbFrame(uint bufferSize,
             byte* buffer = null,
@@ -43,6 +44,8 @@ namespace VmbNET
         public readonly uint OffsetY { get; }                 //!< Vertical offset of an image
         public readonly VmbPayloadType PayloadType { get; }             //!< The type of payload
         public readonly bool ChunkDataPresent { get; }        //!< True if the transport layer reported chunk data to be present in the buffer
+
+        public readonly ulong OffsetTimestamp => Timestamp - TimeOffset;
 
         public override readonly string ToString() =>
             FrameID + "; " + Width + '×' + Height + "; " + Timestamp + " ns";
