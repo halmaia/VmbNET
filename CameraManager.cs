@@ -394,10 +394,10 @@ namespace VmbNET
         [SkipLocalsInit, MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static unsafe VmbFrame*[] CreateFramesAndAnnounce([NotNull, DisallowNull] VmbHandle cameraHandle,
                                                                          uint payloadSize,
-                                                                         int numberOfFrames)
+                                                                         uint numberOfFrames)
         {
             VmbFrame*[] frames = new VmbFrame*[numberOfFrames];
-            for (int i = 0; i < numberOfFrames;)
+            for (uint i = 0; i != numberOfFrames;)
                 frames[i++] = CreateFrameAndAnnounce(cameraHandle, payloadSize);
 
             return frames;
@@ -727,7 +727,8 @@ namespace VmbNET
         #region Start Async Recording
         [SkipLocalsInit]
         public static unsafe (VmbHandle cameraHandle, VmbFrame*[] frames)
-            StartAsyncRecordingOnFirstCamera(int numberOfBufferFrames,
+            StartAsyncRecordingOnFirstCamera([ConstantExpected(Max = 64u, Min = 3u)]
+                                             uint numberOfBufferFrames,
                                              double frameRate,
                                              delegate* unmanaged<VmbHandle, VmbHandle, VmbFrame*, void> callback)
         {
@@ -739,12 +740,13 @@ namespace VmbNET
 
         [SkipLocalsInit]
         public static unsafe VmbFrame*[] StartAsyncRecording([NotNull, DisallowNull] VmbHandle handle,
-                                                int numberOfBufferFrames,
+                                                [ConstantExpected(Max = 64u, Min = 3u)]
+                                                uint numberOfBufferFrames,
                                                 double frameRate,
                                                 delegate* unmanaged<VmbHandle, VmbHandle, VmbFrame*, void> callback)
         {
-            ArgumentOutOfRangeException.ThrowIfLessThan(numberOfBufferFrames, 3, nameof(numberOfBufferFrames));
-            ArgumentOutOfRangeException.ThrowIfGreaterThan(numberOfBufferFrames, 64, nameof(numberOfBufferFrames));
+            ArgumentOutOfRangeException.ThrowIfLessThan(numberOfBufferFrames, 3u, nameof(numberOfBufferFrames));
+            ArgumentOutOfRangeException.ThrowIfGreaterThan(numberOfBufferFrames, 64u, nameof(numberOfBufferFrames));
             ArgumentOutOfRangeException.ThrowIfNegative(frameRate, nameof(frameRate));
 
             //SetMaxDriverBuffersCount(handle, numberOfBufferFrames);
@@ -834,6 +836,7 @@ namespace VmbNET
         #endregion End – Feature Invalidation UnRegister
 
         #region Register/UnRegister Device Temperature Callback
+
         public static unsafe void RegisterDeviceTemperatureCallback([NotNull, DisallowNull] VmbHandle handle,
                                                                     [NotNull, DisallowNull] delegate* unmanaged<VmbHandle, byte*, void*, void> callback,
                                                                     void* userContext = null) =>
@@ -841,7 +844,7 @@ namespace VmbNET
 
         public static unsafe void UnRegisterDeviceTemperatureCallback([NotNull, DisallowNull] VmbHandle handle,
                                                                       [NotNull, DisallowNull] delegate* unmanaged<VmbHandle, byte*, void*, void> callback) =>
-           FeatureInvalidationUnRegister(handle, "DeviceTemperature"u8, callback);
+            FeatureInvalidationUnRegister(handle, "DeviceTemperature"u8, callback);
         #endregion  End – Register/UnRegister Device Temperature Callback
 
         #region Feature Gets
@@ -862,7 +865,7 @@ namespace VmbNET
 
         [MethodImpl(MethodImplOptions.AggressiveInlining), SkipLocalsInit]
         public static unsafe double FeatureFloatGet([NotNull, DisallowNull] VmbHandle handle,
-                                                  [NotNull, DisallowNull] ReadOnlySpan<byte> name)
+                                                    [NotNull, DisallowNull] ReadOnlySpan<byte> name)
         {
             fixed (byte* pName = name)
                 return FeatureFloatGet(handle, pName);

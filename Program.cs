@@ -16,7 +16,7 @@ namespace VmbNET
 
             _ = Console.ReadKey();
 
-            CameraManager.FeatureInvalidationUnRegister()
+            CameraManager.UnRegisterDeviceTemperatureCallback(handle, &TemperatureInvalidated);
             CameraManager.StopAsyncRecording(handle);
             CameraManager.CameraClose(handle);
             CameraManager.Shutdown();
