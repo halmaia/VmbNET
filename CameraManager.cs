@@ -1,10 +1,7 @@
-﻿using System.ComponentModel;
-using System.ComponentModel.DataAnnotations;
-using System.Diagnostics;
+﻿using System.ComponentModel.DataAnnotations;
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
-using static System.Runtime.InteropServices.JavaScript.JSType;
 using VmbHandle = nuint;
 
 namespace VmbNET
@@ -76,7 +73,7 @@ namespace VmbNET
             }
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(MethodImplOptions.AggressiveInlining), SkipLocalsInit]
         private static void CheckProcessType()
         {
             if (nuint.Size != 8)
@@ -101,7 +98,7 @@ namespace VmbNET
 
             [DllImport(dllName, BestFitMapping = false, CallingConvention = CallingConvention.StdCall,
             EntryPoint = nameof(VmbStartup), ExactSpelling = true, PreserveSig = true, SetLastError = false)]
-            static unsafe extern ErrorType VmbStartup(char* pathConfiguration);
+            static unsafe extern ErrorType VmbStartup([AllowNull] char* pathConfiguration);
         }
 
         /// <summary>
@@ -168,11 +165,26 @@ namespace VmbNET
         /// A string containing a semicolon (Windows) or colon (other os) separated list of paths.
         /// The paths contain directories to search for .cti files, paths to .cti files and optionally the path to a configuration xml file.
         /// </param>
-        public static void Startup([DisallowNull] IReadOnlyList<string> paths)
+        public static void Startup([DisallowNull] IReadOnlyList<string> paths, [ConstantExpected] char separator = ';')
         {
             ArgumentNullException.ThrowIfNull(paths, nameof(paths));
             ArgumentOutOfRangeException.ThrowIfZero(paths!.Count, nameof(paths));
-            Startup((ReadOnlySpan<char>)string.Join(',', paths!));
+            ThrowOnSeparatorError(separator);
+
+            Startup((ReadOnlySpan<char>)string.Join(separator, paths!));
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static void ThrowOnSeparatorError([ConstantExpected] char separator)
+        {
+            if (separator is not ';' or ':')
+            {
+                ThrowSeparatorError();
+
+                [DoesNotReturn]
+                static void ThrowSeparatorError() =>
+                throw new ArgumentOutOfRangeException(nameof(separator), "Use semicolon for Windows or colon for other os!");
+            }
         }
 
         /// <summary>
@@ -186,13 +198,13 @@ namespace VmbNET
         /// Semicolon for Windows or colon for other os.
         /// </param>
         [SkipLocalsInit]
-        public static void Startup([DisallowNull] string[] paths, [ConstantExpected] char separator = ';')
+        public static void Startup([DisallowNull] string[] paths,
+                                   [ConstantExpected]
+                                   char separator = ';')
         {
             ArgumentNullException.ThrowIfNull(paths, nameof(paths));
             ArgumentOutOfRangeException.ThrowIfZero(paths!.Length, nameof(paths));
-
-            if (separator is not ',' or ';')
-                throw new ArgumentOutOfRangeException(nameof(separator), "Use semicolon for Windows or colon for other os!");
+            ThrowOnSeparatorError(separator);
 
             Startup((ReadOnlySpan<char>)string.Join(separator, paths!));
         }
@@ -215,11 +227,16 @@ namespace VmbNET
         #endregion
 
         #region API Test
+        [SkipLocalsInit]
         public static bool IsAPIUpAndRunning([NotNullWhen(false)] out string? errorMessage)
         {
             try
             {
                 CheckProcessType();
+
+                if (!IsVmbCAvailable)
+                    throw new FileNotFoundException("Required dll not found.", dllName);
+
                 Startup();
                 Shutdown();
             }
@@ -232,6 +249,7 @@ namespace VmbNET
             errorMessage = null;
             return true;
         }
+
         public static bool IsVmbCAvailable => File.Exists(dllName);
         #endregion End – API Test
 
@@ -317,13 +335,13 @@ namespace VmbNET
             return cameraInfo;
         }
 
-        [SkipLocalsInit]
-        [return: MaybeNull]
-        public static VmbCameraInfo? GetFirstCamera() => CamerasList(true)?[0]; // Null propagation.
+        [MethodImpl(MethodImplOptions.AggressiveInlining), SkipLocalsInit]
+        public static VmbCameraInfo GetFirstCamera() =>
+            (CamerasList(true) ?? throw new NullReferenceException("No camera found!"))[0];
         #endregion End – List Cameras
 
         #region Open Cameras
-        [SkipLocalsInit]
+        [MethodImpl(MethodImplOptions.AggressiveInlining), SkipLocalsInit]
         public static unsafe VmbHandle CameraOpen([NotNull, DisallowNull] byte* idString,
                                                   VmbAccessMode accessMode = VmbAccessMode.VmbAccessModeExclusive)
         {
@@ -338,20 +356,14 @@ namespace VmbNET
             unsafe static extern ErrorType VmbCameraOpen(byte* idString, VmbAccessMode accessMode, VmbHandle* pCameraHandle);
         }
 
-        [SkipLocalsInit]
+        [MethodImpl(MethodImplOptions.AggressiveInlining), SkipLocalsInit]
         public static unsafe VmbHandle CameraOpen([DisallowNull] VmbCameraInfo camera,
                                                   VmbAccessMode accessMode = VmbAccessMode.VmbAccessModeExclusive) =>
             CameraOpen(camera.CameraIdExtended, accessMode);
 
-        [SkipLocalsInit]
-        public static unsafe VmbHandle OpenFirstCamera(VmbAccessMode accessMode = VmbAccessMode.VmbAccessModeExclusive)
-        {
-            VmbCameraInfo? firstCamera = GetFirstCamera();
-            if (firstCamera.HasValue)
-                return CameraOpen(firstCamera.Value.CameraIdExtended, accessMode);
-
-            throw new NullReferenceException("No camera found!");
-        }
+        [MethodImpl(MethodImplOptions.AggressiveInlining), SkipLocalsInit]
+        public static unsafe VmbHandle OpenFirstCamera(VmbAccessMode accessMode = VmbAccessMode.VmbAccessModeExclusive) =>
+            CameraOpen(GetFirstCamera().CameraIdExtended, accessMode);
         #endregion End – Open Cameras
 
         #region Frame Announce
@@ -377,10 +389,11 @@ namespace VmbNET
         public static unsafe VmbFrame* CreateFrameAndAnnounce([NotNull, DisallowNull] VmbHandle cameraHandle,
                                                               uint payloadSize)
         {
-            byte* ptr = (byte*)NativeMemory.AlignedAlloc(VmbFrame.Size, 64u);
-            Unsafe.InitBlock(ptr, 0, VmbFrame.Size);
-            *(uint*)(ptr + 8) = payloadSize;
-            VmbFrame* pFrame = (VmbFrame*)ptr;
+            ArgumentOutOfRangeException.ThrowIfZero(payloadSize);
+
+            VmbFrame* pFrame = (VmbFrame*)NativeMemory.AlignedAlloc(VmbFrame.Size, 64u);
+            Unsafe.InitBlock(pFrame, 0, VmbFrame.Size);
+            *(uint*)(((byte*)pFrame) + 8) = payloadSize;
 
             FrameAnnounce(cameraHandle, pFrame);
             return pFrame;
@@ -389,27 +402,38 @@ namespace VmbNET
         [MethodImpl(MethodImplOptions.AggressiveInlining), SkipLocalsInit]
         public static unsafe void FreeAllocatedFrames(VmbFrame*[] frames)
         {
-            for (int i = 0, len = frames.Length; i < len;)
+            if (frames is not null)
             {
-                NativeMemory.AlignedFree(frames[i]);
-                frames[i++] = null;
+                int i = 0;
+                int len = frames.Length;
+                while (i != len)
+                {
+                    NativeMemory.AlignedFree(frames[i]);
+                    frames[i++] = null;
+                }
             }
         }
 
         [SkipLocalsInit, MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static unsafe VmbFrame*[] CreateFramesAndAnnounce([NotNull, DisallowNull] VmbHandle cameraHandle,
-                                                                         uint payloadSize,
-                                                                         uint numberOfFrames)
+                                                                 uint payloadSize,
+                                                                 uint numberOfBufferFrames)
         {
-            VmbFrame*[] frames = new VmbFrame*[numberOfFrames];
-            for (uint i = 0; i != numberOfFrames;)
+            ArgumentOutOfRangeException.ThrowIfLessThan(numberOfBufferFrames, 3u, nameof(numberOfBufferFrames));
+
+            VmbFrame*[] frames = new VmbFrame*[numberOfBufferFrames];
+
+            uint i = 0u;
+            do
                 frames[i++] = CreateFrameAndAnnounce(cameraHandle, payloadSize);
+            while (i != numberOfBufferFrames);
 
             return frames;
         }
         #endregion End – Frame Announce
 
         #region Get Payload Size
+        [SkipLocalsInit]
         public static unsafe uint PayloadSizeGet([NotNull, DisallowNull] VmbHandle handle)
         {
             ArgumentNullException.ThrowIfNull((void*)handle, nameof(handle));
@@ -462,7 +486,7 @@ namespace VmbNET
         /// The order in which the frames are filled is determined by the order in which they are queued.
         /// If the frame was announced with FrameAnnounce() before, the application
         /// has to ensure that the frame is also revoked by calling FrameRevoke() or
-        /// FrameRevokeAll() when cleaning up.
+        /// <see cref="FrameRevoke(VmbHandle, VmbFrame*)"/> when cleaning up.
         /// </summary>
         /// <param name="handle">Handle of a camera or stream.</param>
         /// <param name="frame">Pointer to an already announced frame.</param>
@@ -473,6 +497,7 @@ namespace VmbNET
         {
             ArgumentNullException.ThrowIfNull((void*)handle, nameof(handle));
             ArgumentNullException.ThrowIfNull(frame, nameof(frame));
+            // Do not test callback for null! See <param name="callback"> above.
 
             DetectError(VmbCaptureFrameQueue(handle!, frame!, callback));
 
@@ -492,9 +517,9 @@ namespace VmbNET
             int len = frames!.Length;
             ArgumentOutOfRangeException.ThrowIfZero(len, nameof(frames));
 
-            for (int i = 0; i < len;)
-                CaptureFrameQueue(handle, frames[i++], callback);
-
+            do
+                CaptureFrameQueue(handle, frames[--len], callback);
+            while (len != -1);
         }
         #endregion End – Capture Frame Queue
 
@@ -552,6 +577,7 @@ namespace VmbNET
         #endregion End – Capture Start
 
         #region Command Run
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static unsafe void FeatureCommandRun([NotNull, DisallowNull] VmbHandle handle,
                                                     [NotNull, DisallowNull] byte* name)
         {
@@ -705,8 +731,11 @@ namespace VmbNET
 
         #region Convinience Sets
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static void SetAcquisitionFrameRate(VmbHandle handle, double frameRate) =>
+        public static void SetAcquisitionFrameRate(VmbHandle handle, double frameRate)
+        {
+            ArgumentOutOfRangeException.ThrowIfLessThan(frameRate, double.Epsilon);
             FeatureFloatSet(handle, "AcquisitionFrameRate"u8, frameRate);
+        }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void SetDeviceLinkThroughputLimitModeToOff(VmbHandle handle) =>
@@ -728,7 +757,7 @@ namespace VmbNET
         public static void SetAcquisitionFrameRateEnableToTrue(VmbHandle handle) =>
             FeatureBoolSet(handle, "AcquisitionFrameRateEnable"u8, true);
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(MethodImplOptions.AggressiveInlining), SkipLocalsInit]
         public static long GetTimestampLatchValue(VmbHandle handle)
         {
             FeatureCommandRun(handle, "TimestampLatch"u8);
@@ -739,9 +768,9 @@ namespace VmbNET
         #endregion End – Convinience Sets
 
         #region Start Async Recording
-        [SkipLocalsInit]
-        public static unsafe (VmbHandle cameraHandle, VmbFrame*[] frames)
-            StartAsyncRecordingOnFirstCamera([ConstantExpected(Max = 64u, Min = 3u)]
+        [MethodImpl(MethodImplOptions.AggressiveInlining), SkipLocalsInit]
+        public static unsafe (VmbHandle cameraHandle, VmbFrame*[] frames) StartAsyncRecordingOnFirstCamera(
+                                             [ConstantExpected(Max = 64u, Min = 3u)]
                                              uint numberOfBufferFrames,
                                              double frameRate,
                                              delegate* unmanaged<VmbHandle, VmbHandle, VmbFrame*, void> callback)
@@ -759,8 +788,6 @@ namespace VmbNET
                                                 double frameRate,
                                                 delegate* unmanaged<VmbHandle, VmbHandle, VmbFrame*, void> callback)
         {
-            ArgumentOutOfRangeException.ThrowIfLessThan(numberOfBufferFrames, 3u, nameof(numberOfBufferFrames));
-            ArgumentOutOfRangeException.ThrowIfGreaterThan(numberOfBufferFrames, 64u, nameof(numberOfBufferFrames));
             ArgumentOutOfRangeException.ThrowIfNegative(frameRate, nameof(frameRate));
 
             //SetTimestampLatchValueToSystemTime(handle);
@@ -781,14 +808,6 @@ namespace VmbNET
             return frames;
         }
         #endregion End – Start Async Recording
-
-        #region Time Sync
-        public static void SyncTime(VmbHandle handle)
-        {
-            // TODO: Latch Sync:
-            throw new NotImplementedException();
-        }
-        #endregion End – Time Sync
 
         #region Feature Invalidation Register
 
@@ -920,16 +939,12 @@ namespace VmbNET
 
         [MethodImpl(MethodImplOptions.AggressiveInlining), SkipLocalsInit]
         public static unsafe long FeatureIntGet([NotNull, DisallowNull] VmbHandle handle,
-                                                  [NotNull, DisallowNull] byte* name)
+                                                [NotNull, DisallowNull] byte* name)
         {
             long value;
             FeatureIntGet(handle, name, &value);
             return value;
         }
         #endregion  End – Feature Gets
-
-        #region Experiments
-
-        #endregion Experiments
     }
 }
