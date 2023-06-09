@@ -357,7 +357,7 @@ namespace VmbNET
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining), SkipLocalsInit]
-        public static unsafe VmbHandle CameraOpen([DisallowNull] VmbCameraInfo camera,
+        public static unsafe VmbHandle CameraOpen([DisallowNull] in VmbCameraInfo camera,
                                                   VmbAccessMode accessMode = VmbAccessMode.VmbAccessModeExclusive) =>
             CameraOpen(camera.CameraIdExtended, accessMode);
 
