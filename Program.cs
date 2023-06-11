@@ -8,9 +8,10 @@ namespace VmbNET
         static unsafe void Main()
         {
             CameraManager.Startup();
+            double frameRate = 1;
 
             (nuint handle, VmbFrame*[] frames) =
-                CameraManager.StartAsyncRecordingOnFirstCamera(16, 20, &FrameArrived);
+                CameraManager.StartAsyncRecordingOnFirstCamera(16, ref frameRate, &FrameArrived);
             CameraManager.RegisterDeviceTemperatureCallback(handle, &TemperatureInvalidated);
 
             _ = Console.ReadKey();

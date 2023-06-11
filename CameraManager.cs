@@ -1,7 +1,9 @@
 ﻿using System.ComponentModel.DataAnnotations;
 using System.Diagnostics.CodeAnalysis;
+using System.Reflection.Metadata;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using System.Xml.Linq;
 using VmbHandle = nuint;
 
 namespace VmbNET
@@ -519,7 +521,7 @@ namespace VmbNET
 
             do
                 CaptureFrameQueue(handle, frames[--len], callback);
-            while (len != -1);
+            while (len != 0);
         }
         #endregion End – Capture Frame Queue
 
@@ -680,6 +682,28 @@ namespace VmbNET
                 FeatureIntSet(handle, pName, value);
         }
 
+        public static unsafe bool TryFeatureFloatSet([NotNull, DisallowNull] VmbHandle handle,
+                                                     [NotNull, DisallowNull] ReadOnlySpan<byte> name,
+                                                     ref double value)
+        {
+
+            fixed (byte* pName = name)
+            {
+                bool isReadable, isWriteable;
+                FeatureAccessQuery(handle, pName, &isReadable, &isWriteable);
+                if (isWriteable && isReadable)
+                {
+                    double min, max;
+                    FeatureFloatRangeQuery(handle, pName, &min, &max);
+                    value = double.Clamp(value, min, max);
+                    FeatureFloatSet(handle, pName, value);
+                    value = FeatureFloatGet(handle, pName);
+                    return true;
+                }
+            }
+            return false;
+        }
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static unsafe void FeatureFloatSet([NotNull, DisallowNull] VmbHandle handle,
                                                   [NotNull, DisallowNull] byte* name,
@@ -737,6 +761,9 @@ namespace VmbNET
             FeatureFloatSet(handle, "AcquisitionFrameRate"u8, frameRate);
         }
 
+        public static bool TrySetAcquisitionFrameRate(VmbHandle handle, ref double frameRate) =>
+            TryFeatureFloatSet(handle, "AcquisitionFrameRate"u8, ref frameRate);
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void SetDeviceLinkThroughputLimitModeToOff(VmbHandle handle) =>
             FeatureEnumSet(handle, "DeviceLinkThroughputLimitMode"u8, "Off"u8);
@@ -772,12 +799,12 @@ namespace VmbNET
         public static unsafe (VmbHandle cameraHandle, VmbFrame*[] frames) StartAsyncRecordingOnFirstCamera(
                                              [ConstantExpected(Max = 64u, Min = 3u)]
                                              uint numberOfBufferFrames,
-                                             double frameRate,
+                                             ref double frameRate,
                                              delegate* unmanaged<VmbHandle, VmbHandle, VmbFrame*, void> callback)
         {
             VmbHandle cameraHandle;
             return (cameraHandle = OpenFirstCamera(),
-            StartAsyncRecording(cameraHandle, numberOfBufferFrames, frameRate, callback));
+            StartAsyncRecording(cameraHandle, numberOfBufferFrames, ref frameRate, callback));
         }
 
 
@@ -785,17 +812,16 @@ namespace VmbNET
         public static unsafe VmbFrame*[] StartAsyncRecording([NotNull, DisallowNull] VmbHandle handle,
                                                 [ConstantExpected(Max = 64u, Min = 3u)]
                                                 uint numberOfBufferFrames,
-                                                double frameRate,
+                                                ref double frameRate,
                                                 delegate* unmanaged<VmbHandle, VmbHandle, VmbFrame*, void> callback)
         {
             ArgumentOutOfRangeException.ThrowIfNegative(frameRate, nameof(frameRate));
 
-            //SetTimestampLatchValueToSystemTime(handle);
-            //SetMaxDriverBuffersCount(handle, numberOfBufferFrames);
             SetDeviceLinkThroughputLimitModeToOff(handle);
             SetAcquisitionModeToContinuous(handle);
             SetAcquisitionFrameRateEnableToTrue(handle);
-            SetAcquisitionFrameRate(handle, frameRate);
+            if (!TrySetAcquisitionFrameRate(handle, ref frameRate))
+                throw new Exception("Unable to set frame rate.");
 
             VmbFrame*[] frames = CreateFramesAndAnnounce(handle, PayloadSizeGet(handle), numberOfBufferFrames);
 
@@ -809,13 +835,125 @@ namespace VmbNET
         }
         #endregion End – Start Async Recording
 
+        #region Feature Access Query
+        [MethodImpl(MethodImplOptions.AggressiveInlining), SkipLocalsInit]
+        public static unsafe void FeatureAccessQuery([NotNull, DisallowNull] VmbHandle handle,
+                                                        [NotNull, DisallowNull] byte* name,
+                                                        [NotNull, DisallowNull] bool* isReadable,
+                                                        [NotNull, DisallowNull] bool* isWriteable)
+        {
+            CheckFeatureArgs(handle, name);
+            ArgumentNullException.ThrowIfNull(isReadable, nameof(isReadable));
+            ArgumentNullException.ThrowIfNull(isWriteable, nameof(isWriteable));
+
+            DetectError(VmbFeatureAccessQuery(handle!, name!, isReadable!, isWriteable!));
+
+            [DllImport(dllName, BestFitMapping = false, CallingConvention = CallingConvention.StdCall,
+             EntryPoint = nameof(VmbFeatureAccessQuery), ExactSpelling = true, SetLastError = false)]
+            static unsafe extern ErrorType VmbFeatureAccessQuery(VmbHandle handle,
+                                                                 byte* name,
+                                                                 bool* isReadable,
+                                                                 bool* isWriteable);
+
+        }
+        public static unsafe (bool isWriteable, bool isReadable) FeatureAccessQuery([NotNull, DisallowNull] VmbHandle handle,
+                                                                                       [NotNull, DisallowNull] byte* name)
+        {
+            (bool isWriteable, bool isReadable) featureAccess;
+            FeatureAccessQuery(handle, name, &featureAccess.isReadable, &featureAccess.isWriteable);
+            return featureAccess;
+        }
+
+        public static unsafe (bool isWriteable, bool isReadable) FeatureAccessQuery([NotNull, DisallowNull] VmbHandle handle,
+                                                                                       [NotNull, DisallowNull] ReadOnlySpan<byte> name)
+        {
+            fixed (byte* pName = name)
+                return FeatureAccessQuery(handle, pName);
+        }
+
+        #endregion End – Feature Info Query
+
+        #region Feature Info Query
+        [MethodImpl(MethodImplOptions.AggressiveInlining), SkipLocalsInit]
+        public static unsafe void FeatureInfoQuery([NotNull, DisallowNull] VmbHandle handle,
+                                                      [NotNull, DisallowNull] byte* name,
+                                                      [NotNull, DisallowNull] VmbFeatureInfo* featureInfo)
+        {
+            CheckFeatureArgs(handle, name);
+            ArgumentNullException.ThrowIfNull(featureInfo, nameof(featureInfo));
+
+            DetectError(VmbFeatureInfoQuery(handle!, name!, featureInfo!));
+
+            [DllImport(dllName, BestFitMapping = false, CallingConvention = CallingConvention.StdCall,
+             EntryPoint = nameof(VmbFeatureInfoQuery), ExactSpelling = true, SetLastError = false)]
+            static unsafe extern ErrorType VmbFeatureInfoQuery(VmbHandle handle,
+                                                               byte* name,
+                                                               VmbFeatureInfo* featureInfo,
+                                                               [ConstantExpected(Max = VmbFeatureInfo.Size, Min = VmbFeatureInfo.Size)]
+                                                               uint sizeofFeatureInfo = VmbFeatureInfo.Size);
+
+        }
+        public static unsafe VmbFeatureInfo FeatureInfoQuery([NotNull, DisallowNull] VmbHandle handle,
+                                                                [NotNull, DisallowNull] byte* name)
+        {
+            VmbFeatureInfo featureInfo;
+            FeatureInfoQuery(handle, name, &featureInfo);
+            return featureInfo;
+        }
+
+        public static unsafe VmbFeatureInfo FeatureInfoQuery([NotNull, DisallowNull] VmbHandle handle,
+                                                                [NotNull, DisallowNull] ReadOnlySpan<byte> name)
+        {
+            fixed (byte* pName = name)
+                return FeatureInfoQuery(handle, pName);
+        }
+
+        #endregion End – Feature Info Query
+
+        #region Fearure Range Query
+        public static unsafe void FeatureFloatRangeQuery([NotNull, DisallowNull] VmbHandle handle,
+                                                 [NotNull, DisallowNull] byte* name,
+                                                 [NotNull, DisallowNull] double* min,
+                                                 [NotNull, DisallowNull] double* max)
+        {
+            CheckFeatureArgs(handle, name);
+            ArgumentNullException.ThrowIfNull(min, nameof(min));
+            ArgumentNullException.ThrowIfNull(max, nameof(max));
+
+            DetectError(VmbFeatureFloatRangeQuery(handle!, name!, min!, max!));
+
+            [DllImport(dllName, BestFitMapping = false, CallingConvention = CallingConvention.StdCall,
+             EntryPoint = nameof(VmbFeatureFloatRangeQuery), ExactSpelling = true, SetLastError = false)]
+            static unsafe extern ErrorType VmbFeatureFloatRangeQuery(VmbHandle handle,
+                                                                 byte* name,
+                                                                 double* min,
+                                                                 double* max);
+
+        }
+
+        public static unsafe (double min, double max) FeatureFloatRangeQuery([NotNull, DisallowNull] VmbHandle handle,
+                                                                               [NotNull, DisallowNull] byte* name)
+        {
+            (double min, double max) featureRange;
+            FeatureFloatRangeQuery(handle, name, &featureRange.min, &featureRange.max);
+            return featureRange;
+        }
+
+        public static unsafe (double min, double max) FeatureFloatRangeQuery([NotNull, DisallowNull] VmbHandle handle,
+                                                                                       [NotNull, DisallowNull] ReadOnlySpan<byte> name)
+        {
+            fixed (byte* pName = name)
+                return FeatureFloatRangeQuery(handle, pName);
+        }
+        #endregion End – Fearure Range Query
+
         #region Feature Invalidation Register
 
         [MethodImpl(MethodImplOptions.AggressiveInlining), SkipLocalsInit]
         public static unsafe void FeatureInvalidationRegister([NotNull, DisallowNull] VmbHandle handle,
-                                                          [NotNull, DisallowNull] ReadOnlySpan<byte> name,
-                                                          [NotNull, DisallowNull] delegate* unmanaged<VmbHandle, byte*, void*, void> callback,
-                                                          void* userContext)
+                                                              [NotNull, DisallowNull] ReadOnlySpan<byte> name,
+                                                              [NotNull, DisallowNull] delegate* unmanaged<VmbHandle, byte*, void*, void> callback,
+                                                              void* userContext)
         {
             fixed (byte* pName = name)
                 FeatureInvalidationRegister(handle, pName, callback, userContext);

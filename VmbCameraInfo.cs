@@ -2,6 +2,7 @@
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using VmbHandle = nuint;
+using static VmbNET.VmbUtils;
 
 namespace VmbNET
 {
@@ -36,9 +37,6 @@ namespace VmbNET
         public readonly string CameraNameStr => PtrToStr(CameraName);
         public readonly string ModelNameStr => PtrToStr(ModelName);
         public readonly string SerialStr => PtrToStr(SerialString);
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static string PtrToStr(byte* ptr) => new((sbyte*)ptr);
 
         public readonly override string ToString() =>
             string.Concat(CameraIdStr, " (", CameraNameStr + ")");
