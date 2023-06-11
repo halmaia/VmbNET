@@ -761,6 +761,19 @@ namespace VmbNET
             FeatureFloatSet(handle, "AcquisitionFrameRate"u8, frameRate);
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static void SetExposureAutoToOff(VmbHandle handle) =>
+          FeatureEnumSet(handle, "ExposureAuto"u8, "Off"u8);
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static void SetExposureAutoToOn(VmbHandle handle) =>
+          FeatureEnumSet(handle, "ExposureAuto"u8, "On"u8);
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static void SetExposureTime(VmbHandle handle, double exposureTime) =>
+           FeatureFloatSet(handle, "ExposureTime"u8, exposureTime);
+        public static bool TrySetExposureTime(VmbHandle handle, ref double exposureTime) =>
+            TryFeatureFloatSet(handle, "ExposureTime"u8, ref exposureTime);
         public static bool TrySetAcquisitionFrameRate(VmbHandle handle, ref double frameRate) =>
             TryFeatureFloatSet(handle, "AcquisitionFrameRate"u8, ref frameRate);
 
