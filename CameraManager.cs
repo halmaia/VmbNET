@@ -813,11 +813,13 @@ namespace VmbNET
                                              [ConstantExpected(Max = 64u, Min = 3u)]
                                              uint numberOfBufferFrames,
                                              ref double frameRate,
-                                             delegate* unmanaged<VmbHandle, VmbHandle, VmbFrame*, void> callback)
+                                             delegate* unmanaged<VmbHandle, VmbHandle, VmbFrame*, void> callback,
+                                             [ConstantExpected]
+                                             bool triggeringOnLine0 = false)
         {
             VmbHandle cameraHandle;
             return (cameraHandle = OpenFirstCamera(),
-            StartAsyncRecording(cameraHandle, numberOfBufferFrames, ref frameRate, callback));
+            StartAsyncRecording(cameraHandle, numberOfBufferFrames, ref frameRate, callback, triggeringOnLine0));
         }
 
 
@@ -826,15 +828,28 @@ namespace VmbNET
                                                 [ConstantExpected(Max = 64u, Min = 3u)]
                                                 uint numberOfBufferFrames,
                                                 ref double frameRate,
-                                                delegate* unmanaged<VmbHandle, VmbHandle, VmbFrame*, void> callback)
+                                                delegate* unmanaged<VmbHandle, VmbHandle, VmbFrame*, void> callback,
+                                                [ConstantExpected]
+                                                bool triggeringOnLine0 = false)
         {
             ArgumentOutOfRangeException.ThrowIfNegative(frameRate, nameof(frameRate));
 
             SetDeviceLinkThroughputLimitModeToOff(handle);
             SetAcquisitionModeToContinuous(handle);
-            SetAcquisitionFrameRateEnableToTrue(handle);
-            if (!TrySetAcquisitionFrameRate(handle, ref frameRate))
-                throw new Exception("Unable to set frame rate.");
+
+            if (triggeringOnLine0)
+            {
+                FeatureEnumSet(handle, "TriggerSource"u8, "Line0"u8);
+                FeatureEnumSet(handle, "TriggerMode"u8, "On"u8);
+                FeatureEnumSet(handle, "TriggerActivation"u8, "RisingEdge"u8);
+                FeatureFloatSet(handle, "TriggerDelay"u8, 0d);
+            }
+            else
+            {
+                SetAcquisitionFrameRateEnableToTrue(handle);
+                if (!TrySetAcquisitionFrameRate(handle, ref frameRate))
+                    throw new Exception("Unable to set frame rate.");
+            }
 
             VmbFrame*[] frames = CreateFramesAndAnnounce(handle, PayloadSizeGet(handle), numberOfBufferFrames);
 
