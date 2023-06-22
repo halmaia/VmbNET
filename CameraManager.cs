@@ -839,10 +839,7 @@ namespace VmbNET
 
             if (triggeringOnLine0)
             {
-                FeatureEnumSet(handle, "TriggerSource"u8, "Line0"u8);
-                FeatureEnumSet(handle, "TriggerMode"u8, "On"u8);
-                FeatureEnumSet(handle, "TriggerActivation"u8, "RisingEdge"u8);
-                FeatureFloatSet(handle, "TriggerDelay"u8, 0d);
+                ActivateExternalTriggeringOnLine0(handle);
             }
             else
             {
@@ -1112,5 +1109,16 @@ namespace VmbNET
             return value;
         }
         #endregion  End – Feature Gets
+
+        #region External triggering
+        [SkipLocalsInit]
+        public static unsafe void ActivateExternalTriggeringOnLine0(nuint handle)
+        {
+            FeatureEnumSet(handle, "TriggerSource"u8, "Line0"u8);
+            FeatureEnumSet(handle!, "TriggerMode"u8, "On"u8); // After the first call it can't be null.
+            FeatureEnumSet(handle!, "TriggerActivation"u8, "RisingEdge"u8);
+            FeatureFloatSet(handle!, "TriggerDelay"u8, 0d);
+        }
+        #endregion End – External triggering
     }
 }
