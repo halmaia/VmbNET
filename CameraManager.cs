@@ -1,9 +1,7 @@
-﻿using System.ComponentModel.DataAnnotations;
+﻿
 using System.Diagnostics.CodeAnalysis;
-using System.Reflection.Metadata;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
-using System.Xml.Linq;
 using VmbHandle = nuint;
 
 namespace VmbNET
@@ -30,7 +28,7 @@ namespace VmbNET
                 {
                     ErrorType.VmbErrorSuccess => "No error",
                     ErrorType.VmbErrorInternalFault => "Unexpected fault in VmbC or driver",
-                    ErrorType.VmbErrorApiNotStarted => "::VmbStartup() was not called before the current command",
+                    ErrorType.VmbErrorApiNotStarted => "VmbStartup() was not called before the current command",
                     ErrorType.VmbErrorNotFound => "The designated instance (camera, feature etc.) cannot be found",
                     ErrorType.VmbErrorBadHandle => "The given handle is not valid",
                     ErrorType.VmbErrorDeviceNotOpen => "Device was not opened for usage",
@@ -78,7 +76,7 @@ namespace VmbNET
         [MethodImpl(MethodImplOptions.AggressiveInlining), SkipLocalsInit]
         private static void CheckProcessType()
         {
-            if (nuint.Size != 8)
+            if (!Environment.Is64BitProcess)
                 throw new PlatformNotSupportedException("Only 64-bit platforms are supported!");
         }
         #endregion
@@ -292,7 +290,7 @@ namespace VmbNET
         #region Close Camera
         public static void CameraClose([NotNull, DisallowNull] VmbHandle cameraHandle)
         {
-            unsafe { ArgumentNullException.ThrowIfNull((void*)cameraHandle, nameof(cameraHandle)); }
+            unsafe { ArgumentNullException.ThrowIfNull(cameraHandle.ToPointer(), nameof(cameraHandle)); }
 
             DetectError(VmbCameraClose(cameraHandle!));
 
@@ -305,7 +303,7 @@ namespace VmbNET
         #region List Cameras
         public static unsafe void CamerasList(VmbCameraInfo* pCameraInfo, uint listLength,
                                               uint* pNumFound,
-                                              uint sizeofCameraInfo)
+                                              [ConstantExpected] uint sizeofCameraInfo)
         {
             ArgumentNullException.ThrowIfNull(pNumFound, nameof(pNumFound));
 
@@ -315,7 +313,7 @@ namespace VmbNET
              EntryPoint = nameof(VmbCamerasList), ExactSpelling = true, SetLastError = false)]
             static unsafe extern ErrorType VmbCamerasList(VmbCameraInfo* pCameraInfo, uint listLength,
                                                           uint* pNumFound,
-                                                          uint sizeofCameraInfo);
+                                                          [ConstantExpected] uint sizeofCameraInfo);
         }
 
         [SkipLocalsInit]
@@ -332,7 +330,7 @@ namespace VmbNET
             VmbCameraInfo[] cameraInfo = new VmbCameraInfo[NumFound];
 
             fixed (VmbCameraInfo* pCameraInfo = cameraInfo)
-                CamerasList(pCameraInfo, NumFound, pNumFound, VmbCameraInfo.Size * NumFound);
+                CamerasList(pCameraInfo, NumFound, pNumFound, VmbCameraInfo.Size);
 
             return cameraInfo;
         }
@@ -373,7 +371,7 @@ namespace VmbNET
         public static unsafe void FrameAnnounce([NotNull, DisallowNull] VmbHandle cameraHandle,
                                                 [NotNull, DisallowNull] VmbFrame* pFrame)
         {
-            ArgumentNullException.ThrowIfNull((void*)cameraHandle, nameof(cameraHandle));
+            ArgumentNullException.ThrowIfNull(cameraHandle.ToPointer(), nameof(cameraHandle));
             ArgumentNullException.ThrowIfNull(pFrame, nameof(pFrame));
 
             DetectError(VmbFrameAnnounce(cameraHandle!, pFrame!));
@@ -438,7 +436,7 @@ namespace VmbNET
         [SkipLocalsInit]
         public static unsafe uint PayloadSizeGet([NotNull, DisallowNull] VmbHandle handle)
         {
-            ArgumentNullException.ThrowIfNull((void*)handle, nameof(handle));
+            ArgumentNullException.ThrowIfNull(handle.ToPointer(), nameof(handle));
 
             uint payloadSize;
             DetectError(VmbPayloadSizeGet(handle!, &payloadSize));
@@ -446,13 +444,13 @@ namespace VmbNET
 
             [DllImport(dllName, BestFitMapping = false, CallingConvention = CallingConvention.StdCall,
             EntryPoint = nameof(VmbPayloadSizeGet), ExactSpelling = true, SetLastError = false)]
-            unsafe static extern ErrorType VmbPayloadSizeGet(VmbHandle handle, uint* payloadSize);
+            unsafe static extern ErrorType VmbPayloadSizeGet([NotNull] VmbHandle handle, [NotNull] uint* payloadSize);
         }
         #endregion End – Get Payload Size
 
         #region Revoke frames
         /// <summary>
-        /// In case of an failure some of the frames may have been revoked. To prevent this it is recommended to call
+        /// In case of a failure some of the frames may have been revoked. To prevent this it is recommended to call
         /// CaptureQueueFlush for the same handle before invoking this function.
         /// </summary>
         /// <param name="handle">Handle for a stream or camera.</param>
@@ -632,7 +630,7 @@ namespace VmbNET
         private static unsafe void CheckFeatureArgs([NotNull, DisallowNull] VmbHandle handle,
                                                     [NotNull, DisallowNull] byte* name)
         {
-            ArgumentNullException.ThrowIfNull((void*)handle, nameof(handle));
+            ArgumentNullException.ThrowIfNull(handle.ToPointer(), nameof(handle));
             ArgumentNullException.ThrowIfNull(name, nameof(name));
         }
 
@@ -804,6 +802,12 @@ namespace VmbNET
             return FeatureIntGet(handle, "TimestampLatchValue"u8);
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining), SkipLocalsInit]
+        public static void ResetTimestamp(VmbHandle handle)
+        {
+            FeatureCommandRun(handle, "TimestampReset"u8);
+        }
+
 
         #endregion End – Convinience Sets
 
@@ -822,9 +826,8 @@ namespace VmbNET
             StartAsyncRecording(cameraHandle, numberOfBufferFrames, ref frameRate, callback, triggeringOnLine0));
         }
 
-
         [SkipLocalsInit]
-        public static unsafe VmbFrame*[] StartAsyncRecording([NotNull, DisallowNull] VmbHandle handle,
+        public static unsafe VmbFrame*[] StartAsyncRecording([NotNull, DisallowNull] VmbHandle cameraHandle,
                                                 [ConstantExpected(Max = 64u, Min = 3u)]
                                                 uint numberOfBufferFrames,
                                                 ref double frameRate,
@@ -834,27 +837,27 @@ namespace VmbNET
         {
             ArgumentOutOfRangeException.ThrowIfNegative(frameRate, nameof(frameRate));
 
-            SetDeviceLinkThroughputLimitModeToOff(handle);
-            SetAcquisitionModeToContinuous(handle);
+            SetDeviceLinkThroughputLimitModeToOff(cameraHandle);
+            SetAcquisitionModeToContinuous(cameraHandle);
 
             if (triggeringOnLine0)
             {
-                ActivateExternalTriggeringOnLine0(handle);
+                ActivateExternalTriggeringOnLine0(cameraHandle);
             }
             else
             {
-                SetAcquisitionFrameRateEnableToTrue(handle);
-                if (!TrySetAcquisitionFrameRate(handle, ref frameRate))
+                SetAcquisitionFrameRateEnableToTrue(cameraHandle);
+                if (!TrySetAcquisitionFrameRate(cameraHandle, ref frameRate))
                     throw new Exception("Unable to set frame rate.");
             }
 
-            VmbFrame*[] frames = CreateFramesAndAnnounce(handle, PayloadSizeGet(handle), numberOfBufferFrames);
+            VmbFrame*[] frames = CreateFramesAndAnnounce(cameraHandle, PayloadSizeGet(cameraHandle), numberOfBufferFrames);
 
-            CaptureStart(handle);
+            CaptureStart(cameraHandle);
 
-            QueueFrames(handle, frames, callback);
+            QueueFrames(cameraHandle, frames, callback);
 
-            AcquisitionStart(handle);
+            AcquisitionStart(cameraHandle);
 
             return frames;
         }
