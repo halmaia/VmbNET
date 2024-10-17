@@ -725,6 +725,18 @@ namespace VmbNET
                 FeatureFloatSet(handle, pName, value);
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining), SuppressGCTransition]
+        public static unsafe void FeatureEnumSetUnsafe([NotNull, DisallowNull] VmbHandle handle,
+                                                       [NotNull, DisallowNull] byte* name,
+                                                       [NotNull, DisallowNull] byte* value)
+        {
+            DetectError(VmbFeatureEnumSet(handle!, name!, value!));
+
+            [DllImport(dllName, BestFitMapping = false, CallingConvention = CallingConvention.StdCall,
+            EntryPoint = nameof(VmbFeatureEnumSet), ExactSpelling = true, SetLastError = false)]
+            static extern unsafe ErrorType VmbFeatureEnumSet(VmbHandle handle, byte* name, byte* value);
+        }
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static unsafe void FeatureEnumSet([NotNull, DisallowNull] VmbHandle handle,
                                                  [NotNull, DisallowNull] byte* name,
@@ -842,7 +854,7 @@ namespace VmbNET
 
             if (triggeringOnLine0)
             {
-                ActivateExternalTriggeringOnLine0(cameraHandle);
+                ActivateExternalTriggeringOnLine1(cameraHandle);
             }
             else
             {
@@ -1118,6 +1130,14 @@ namespace VmbNET
         public static unsafe void ActivateExternalTriggeringOnLine0(nuint handle)
         {
             FeatureEnumSet(handle, "TriggerSource"u8, "Line0"u8);
+            FeatureEnumSet(handle!, "TriggerMode"u8, "On"u8); // After the first call it can't be null.
+            FeatureEnumSet(handle!, "TriggerActivation"u8, "RisingEdge"u8);
+            FeatureFloatSet(handle!, "TriggerDelay"u8, 0d);
+        }
+        [SkipLocalsInit]
+        public static unsafe void ActivateExternalTriggeringOnLine1(nuint handle)
+        {
+            FeatureEnumSet(handle, "TriggerSource"u8, "Line1"u8);
             FeatureEnumSet(handle!, "TriggerMode"u8, "On"u8); // After the first call it can't be null.
             FeatureEnumSet(handle!, "TriggerActivation"u8, "RisingEdge"u8);
             FeatureFloatSet(handle!, "TriggerDelay"u8, 0d);
