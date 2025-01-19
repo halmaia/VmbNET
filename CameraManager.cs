@@ -2,6 +2,7 @@
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using System.Security;
 using VmbHandle = nuint;
 
 namespace VmbNET
@@ -218,11 +219,11 @@ namespace VmbNET
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void Shutdown()
         {
-            DetectError(VmbShutdown());
+            VmbShutdown();
 
             [DllImport(dllName, BestFitMapping = false, CallingConvention = CallingConvention.StdCall,
              EntryPoint = nameof(VmbShutdown), ExactSpelling = true, PreserveSig = true, SetLastError = false)]
-            static extern ErrorType VmbShutdown();
+            static extern void VmbShutdown();
         }
         #endregion
 
@@ -725,7 +726,7 @@ namespace VmbNET
                 FeatureFloatSet(handle, pName, value);
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining), SuppressGCTransition]
+        [MethodImpl(MethodImplOptions.AggressiveInlining), SuppressGCTransition, SuppressUnmanagedCodeSecurity]
         public static unsafe void FeatureEnumSetUnsafe([NotNull, DisallowNull] VmbHandle handle,
                                                        [NotNull, DisallowNull] byte* name,
                                                        [NotNull, DisallowNull] byte* value)
