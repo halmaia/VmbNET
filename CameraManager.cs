@@ -1061,6 +1061,62 @@ namespace VmbNET
         #endregion  End – Register/UnRegister Device Temperature Callback
 
         #region Feature Gets
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static unsafe void FeatureStringGet([NotNull, DisallowNull] VmbHandle handle,
+                                          [NotNull, DisallowNull] byte* name,
+                                          [AllowNull] byte* buffer,
+                                          uint bufferSize,
+                                          [NotNull, DisallowNull] uint* sizeFilled)
+        {
+            CheckFeatureArgs(handle, name);
+
+            DetectError(VmbFeatureStringGet(handle!, name!, buffer, bufferSize, sizeFilled));
+
+            [DllImport(dllName, BestFitMapping = false, CallingConvention = CallingConvention.StdCall,
+            EntryPoint = nameof(VmbFeatureStringGet), ExactSpelling = true, SetLastError = false)]
+            static extern unsafe ErrorType VmbFeatureStringGet([NotNull, DisallowNull] VmbHandle handle,
+                                          [NotNull, DisallowNull] byte* name,
+                                          [AllowNull] byte* buffer,
+                                          uint bufferSize,
+                                          [NotNull, DisallowNull] uint* sizeFilled);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining), SkipLocalsInit]
+        public static unsafe string FeatureStringGet([NotNull, DisallowNull] VmbHandle handle,
+                                                    [NotNull, DisallowNull] ReadOnlySpan<byte> name)
+        {
+            fixed (byte* pName = name)
+                return FeatureStringGet(handle, pName);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining), SkipLocalsInit]
+        public static unsafe string FeatureStringGet([NotNull, DisallowNull] VmbHandle handle,
+                                                     [NotNull, DisallowNull] byte* name)
+        {
+            Unsafe.SkipInit(out uint sizeFilled);
+            FeatureStringGet(handle, name, null, 0u, &sizeFilled);
+
+            if (sizeFilled <= 2048u)
+            {
+                byte* buffer = stackalloc byte[(int)sizeFilled];
+                FeatureStringGet(handle, name, buffer, sizeFilled, &sizeFilled);
+                return new((sbyte*)buffer);
+            }
+            if (sizeFilled > Array.MaxLength)
+                ThrowOversizedStrigBuffer();
+
+            fixed (byte* buffer = GC.AllocateUninitializedArray<byte>((int)sizeFilled, true))
+            {
+                FeatureStringGet(handle, name, buffer, sizeFilled, &sizeFilled);
+                return new((sbyte*)buffer);
+            }
+
+            [DoesNotReturn]
+            static void ThrowOversizedStrigBuffer() =>
+            throw new OutOfMemoryException("String length out of range. Impossible to allocate.");
+        }
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static unsafe void FeatureFloatGet([NotNull, DisallowNull] VmbHandle handle,
                                                   [NotNull, DisallowNull] byte* name,
