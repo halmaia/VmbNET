@@ -1106,7 +1106,7 @@ namespace VmbNET
             if (sizeFilled > Array.MaxLength)
                 ThrowOversizedStrigBuffer();
 
-            fixed (byte* buffer = GC.AllocateUninitializedArray<byte>((int)sizeFilled, true))
+            fixed (byte* buffer = GC.AllocateUninitializedArray<byte>((int)sizeFilled, false))
             {
                 FeatureStringGet(handle, name, buffer, sizeFilled, &sizeFilled);
                 return new((sbyte*)buffer);
