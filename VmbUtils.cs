@@ -1,10 +1,9 @@
 ﻿using System.Runtime.CompilerServices;
 
-namespace VmbNET
+namespace VmbNET;
+
+internal static class VmbUtils
 {
-    internal static class VmbUtils
-    {
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal static unsafe string PtrToStr(byte* ptr) => new((sbyte*)ptr);
-    }
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    internal static unsafe string PtrToStr(byte* ptr) => new((sbyte*)ptr);
 }
