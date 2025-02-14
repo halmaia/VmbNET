@@ -9,9 +9,10 @@ namespace VmbNET
         {
             CameraManager.Startup();
             double frameRate = 1;
+            double exposureTime = 5000.8d;
 
             (nuint handle, VmbFrame*[] frames) =
-                CameraManager.StartAsyncRecordingOnFirstCamera(16, ref frameRate, &FrameArrived, true);
+                CameraManager.StartAsyncRecordingOnFirstCamera(16, ref exposureTime, ref frameRate, &FrameArrived,  true);
             CameraManager.RegisterDeviceTemperatureCallback(handle, &TemperatureInvalidated);
 
             _ = Console.ReadKey();

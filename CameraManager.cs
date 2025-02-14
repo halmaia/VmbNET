@@ -1,5 +1,6 @@
 ﻿
 using System.Diagnostics.CodeAnalysis;
+using System.Reflection.Metadata;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Security;
@@ -719,6 +720,93 @@ public static class CameraManager
             FeatureFloatSet(handle, pName, value);
     }
 
+    public static unsafe void WriteUserDataFileAtZero([NotNull, DisallowNull] VmbHandle handle,
+                                                [NotNull, DisallowNull] byte* buffer, uint bufferSize)
+    {
+        FeatureEnumSet(handle, "FileSelector"u8, "UserData"u8);
+        FeatureEnumSet(handle, "FileOperationSelector"u8, "Delete"u8);
+        FeatureCommandRun(handle, "FileOperationExecute"u8);
+        FeatureEnumSet(handle, "FileOperationSelector"u8, "Open"u8);
+        FeatureEnumSet(handle, "FileOpenMode"u8, "Write"u8);
+        FeatureCommandRun(handle, "FileOperationExecute"u8);
+        FeatureEnumSet(handle, "FileOperationSelector"u8, "Write"u8);
+        FeatureRawSet(handle, "FileAccessBuffer"u8, buffer, bufferSize);
+        FeatureCommandRun(handle, "FileOperationExecute"u8);
+        FeatureEnumSet(handle, "FileOperationSelector"u8, "Close"u8);
+        FeatureCommandRun(handle, "FileOperationExecute"u8);
+    }
+
+    public static unsafe void ReadUserDataAtZero([NotNull, DisallowNull] VmbHandle handle,
+                                                [NotNull, DisallowNull] byte* buffer, uint bufferSize, uint* sizeFilled)
+    {
+        FeatureEnumSet(handle, "FileSelector"u8, "UserData"u8);
+        FeatureEnumSet(handle, "FileOperationSelector"u8, "Open"u8);
+        FeatureEnumSet(handle, "FileOpenMode"u8, "Read"u8);
+        FeatureCommandRun(handle, "FileOperationExecute"u8);
+        FeatureEnumSet(handle, "FileOperationSelector"u8, "Read"u8);
+        FeatureCommandRun(handle, "FileOperationExecute"u8);
+        FeatureRawGet(handle, "FileAccessBuffer"u8, buffer, 4, sizeFilled);
+        FeatureEnumSet(handle, "FileOperationSelector"u8, "Close"u8);
+        FeatureCommandRun(handle, "FileOperationExecute"u8);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static unsafe void FeatureRawSet([NotNull, DisallowNull] VmbHandle handle,
+                                        ReadOnlySpan<byte> name,
+                                        [NotNull, DisallowNull] byte* buffer,
+                                        uint bufferSize)
+    {
+        fixed (byte* pName = name)
+            FeatureRawSet(handle, pName, buffer, bufferSize);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static unsafe void FeatureRawSet([NotNull, DisallowNull] VmbHandle handle,
+                                            [NotNull, DisallowNull] byte* name,
+                                            [NotNull, DisallowNull] byte* buffer,
+                                            uint bufferSize)
+    {
+        CheckFeatureArgs(handle, name);
+        ArgumentNullException.ThrowIfNull(buffer);
+
+        DetectError(VmbFeatureRawSet(handle!, name!, buffer, bufferSize));
+
+        [DllImport(dllName, BestFitMapping = false, CallingConvention = CallingConvention.StdCall,
+        EntryPoint = nameof(VmbFeatureRawSet), ExactSpelling = true, SetLastError = false)]
+        static extern unsafe ErrorType VmbFeatureRawSet(VmbHandle handle, byte* name, byte* buffer,
+                                                        uint bufferSize);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static unsafe void FeatureRawGet([NotNull, DisallowNull] VmbHandle handle,
+                                    ReadOnlySpan<byte> name,
+                                    [NotNull, DisallowNull] byte* buffer,
+                                    uint bufferSize,
+                                    [NotNull, DisallowNull] uint* sizeFilled)
+    {
+        fixed (byte* pName = name)
+            FeatureRawGet(handle, pName, buffer, bufferSize, sizeFilled);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static unsafe void FeatureRawGet([NotNull, DisallowNull] VmbHandle handle,
+                                            [NotNull, DisallowNull] byte* name,
+                                            [NotNull, DisallowNull] byte* buffer,
+                                            uint bufferSize,
+                                            [NotNull, DisallowNull] uint* sizeFilled)
+    {
+        CheckFeatureArgs(handle, name);
+        ArgumentNullException.ThrowIfNull(buffer);
+
+        DetectError(VmbFeatureRawGet(handle!, name!, buffer, bufferSize, sizeFilled));
+
+        [DllImport(dllName, BestFitMapping = false, CallingConvention = CallingConvention.StdCall,
+        EntryPoint = nameof(VmbFeatureRawGet), ExactSpelling = true, SetLastError = false)]
+        static extern unsafe ErrorType VmbFeatureRawGet(VmbHandle handle, byte* name, byte* buffer,
+                                                        uint bufferSize,
+                                                        uint* sizeFilled);
+    }
+
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static unsafe void FeatureEnumSetUnsafe([NotNull, DisallowNull] VmbHandle handle,
                                                    [NotNull, DisallowNull] byte* name,
@@ -827,6 +915,7 @@ public static class CameraManager
     public static unsafe (VmbHandle cameraHandle, VmbFrame*[] frames) StartAsyncRecordingOnFirstCamera(
                                          [ConstantExpected(Max = 64u, Min = 3u)]
                                          uint numberOfBufferFrames,
+                                         ref double exposureTime,
                                          ref double frameRate,
                                          delegate* unmanaged<VmbHandle, VmbHandle, VmbFrame*, void> callback,
                                          [ConstantExpected]
@@ -834,13 +923,14 @@ public static class CameraManager
     {
         VmbHandle cameraHandle;
         return (cameraHandle = OpenFirstCamera(),
-        StartAsyncRecording(cameraHandle, numberOfBufferFrames, ref frameRate, callback, triggeringOnLine0));
+        StartAsyncRecording(cameraHandle, numberOfBufferFrames, ref exposureTime, ref frameRate, callback, triggeringOnLine0));
     }
 
     [SkipLocalsInit]
     public static unsafe VmbFrame*[] StartAsyncRecording([NotNull, DisallowNull] VmbHandle cameraHandle,
                                             [ConstantExpected(Max = 64u, Min = 3u)]
                                             uint numberOfBufferFrames,
+                                            ref double exposureTime,
                                             ref double frameRate,
                                             delegate* unmanaged<VmbHandle, VmbHandle, VmbFrame*, void> callback,
                                             [ConstantExpected]
@@ -858,6 +948,8 @@ public static class CameraManager
         else
         {
             SetAcquisitionFrameRateEnableToTrue(cameraHandle);
+            if (!TrySetExposureTime(cameraHandle, ref exposureTime))
+                throw new Exception("Unable to set exposure time.");
             if (!TrySetAcquisitionFrameRate(cameraHandle, ref frameRate))
                 throw new Exception("Unable to set frame rate.");
         }
