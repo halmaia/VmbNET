@@ -745,7 +745,7 @@ public static class CameraManager
         FeatureCommandRun(handle, "FileOperationExecute"u8);
         FeatureEnumSet(handle, "FileOperationSelector"u8, "Read"u8);
         FeatureCommandRun(handle, "FileOperationExecute"u8);
-        FeatureRawGet(handle, "FileAccessBuffer"u8, buffer, 4, sizeFilled);
+        FeatureRawGet(handle, "FileAccessBuffer"u8, buffer, bufferSize, sizeFilled);
         FeatureEnumSet(handle, "FileOperationSelector"u8, "Close"u8);
         FeatureCommandRun(handle, "FileOperationExecute"u8);
     }
