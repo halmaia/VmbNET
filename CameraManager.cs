@@ -513,7 +513,7 @@ public static class CameraManager
 
         do
             CaptureFrameQueue(handle, frames[--len], callback);
-        while (len != 0);
+        while (len is not 0);
     }
     #endregion End – Capture Frame Queue
 
@@ -719,7 +719,7 @@ public static class CameraManager
             FeatureFloatSet(handle, pName, value);
     }
 
-    [MethodImpl(MethodImplOptions.AggressiveInlining), SuppressGCTransition, SuppressUnmanagedCodeSecurity]
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static unsafe void FeatureEnumSetUnsafe([NotNull, DisallowNull] VmbHandle handle,
                                                    [NotNull, DisallowNull] byte* name,
                                                    [NotNull, DisallowNull] byte* value)
@@ -727,7 +727,8 @@ public static class CameraManager
         DetectError(VmbFeatureEnumSet(handle!, name!, value!));
 
         [DllImport(dllName, BestFitMapping = false, CallingConvention = CallingConvention.StdCall,
-        EntryPoint = nameof(VmbFeatureEnumSet), ExactSpelling = true, SetLastError = false)]
+        EntryPoint = nameof(VmbFeatureEnumSet), ExactSpelling = true, SetLastError = false),
+        SuppressGCTransition, SuppressUnmanagedCodeSecurity]
         static extern unsafe ErrorType VmbFeatureEnumSet(VmbHandle handle, byte* name, byte* value);
     }
 
@@ -764,6 +765,10 @@ public static class CameraManager
         ArgumentOutOfRangeException.ThrowIfLessThan(frameRate, double.Epsilon);
         FeatureFloatSet(handle, "AcquisitionFrameRate"u8, frameRate);
     }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static string GetDeviceUserID(VmbHandle handle) =>
+        FeatureStringGet(handle, "DeviceUserID"u8);
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static void SetExposureAutoToOff(VmbHandle handle) =>
