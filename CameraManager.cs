@@ -942,6 +942,8 @@ public static class CameraManager
 
         if (triggeringOnLine0)
         {
+            if (!TrySetExposureTime(cameraHandle, ref exposureTime))
+                throw new Exception("Unable to set exposure time.");
             // Azért a Line1 mert később állítjuk Line0-ra!!!
             ActivateExternalTriggeringOnLine1(cameraHandle);
         }
