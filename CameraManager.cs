@@ -1,6 +1,5 @@
 ﻿
 using System.Diagnostics.CodeAnalysis;
-using System.Reflection.Metadata;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Security;
@@ -943,6 +942,7 @@ public static class CameraManager
 
         if (triggeringOnLine0)
         {
+            // Azért a Line1 mert később állítjuk Line0-ra!!!
             ActivateExternalTriggeringOnLine1(cameraHandle);
         }
         else
@@ -1274,17 +1274,21 @@ public static class CameraManager
 
     #region External triggering
     [SkipLocalsInit]
-    public static unsafe void ActivateExternalTriggeringOnLine0(nuint handle)
+    public static unsafe void ActivateExternalTriggeringOnLine0([NotNull] VmbHandle handle)
     {
         FeatureEnumSet(handle, "TriggerSource"u8, "Line0"u8);
-        FeatureEnumSet(handle!, "TriggerMode"u8, "On"u8); // After the first call it can't be null.
-        FeatureEnumSet(handle!, "TriggerActivation"u8, "RisingEdge"u8);
-        FeatureFloatSet(handle!, "TriggerDelay"u8, 0d);
+        ActivateExternalTriggering(handle);
     }
     [SkipLocalsInit]
-    public static unsafe void ActivateExternalTriggeringOnLine1(nuint handle)
+    public static unsafe void ActivateExternalTriggeringOnLine1([NotNull] VmbHandle handle)
     {
         FeatureEnumSet(handle, "TriggerSource"u8, "Line1"u8);
+        ActivateExternalTriggering(handle);
+    }
+
+    [SkipLocalsInit, MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static unsafe void ActivateExternalTriggering([NotNull] VmbHandle handle)
+    {
         FeatureEnumSet(handle!, "TriggerMode"u8, "On"u8); // After the first call it can't be null.
         FeatureEnumSet(handle!, "TriggerActivation"u8, "RisingEdge"u8);
         FeatureFloatSet(handle!, "TriggerDelay"u8, 0d);
